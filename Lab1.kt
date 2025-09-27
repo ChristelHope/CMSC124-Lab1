@@ -4,10 +4,10 @@ Your scanner will need to handle:
 
 - Single-character tokens (parentheses, operators, punctuation)     --> Done
 - Multi-character operators (like == and <=)
-- String literals enclosed in quotes
-- Numeric literals (both integers and decimals)
-- Identifiers and keywords
-- Comments (which should be ignored)
+- String literals enclosed in quotes --> Done
+- Numeric literals (both integers and decimals) --> Done
+- Identifiers and keywords --> Done
+- Comments (which should be ignored) --> Done
 - Whitespace handling and error reporting                          --> Done
 
 The expected, testable output for this laboratory activity is a Read-eval-print loop (REPL) in the command line. 
@@ -35,7 +35,7 @@ enum class TokenType {
     EQUAL_EQUAL, LESS, GREATER, MINUS_MINUS, PLUS_PLUS, LESS_EQUAL, GREATER_EQUAL, BANG_EQUAL, BANG, EQUAL,
 
     // Symbols
-    LEFT_PAREN, RIGHT_PAREN, PLUS, MINUS, LEFT_BRACE, RIGHT_BRACE, COMMA, SEMICOLON, DOT, SLASH, STAR,
+    LEFT_PAREN, RIGHT_PAREN, PLUS, MINUS, LEFT_BRACE, RIGHT_BRACE, COMMA, SEMICOLON, DOT, SLASH, STAR, DOUBLE_QUOTE,
 
     // Special markers
     EOF, ERROR
@@ -55,6 +55,16 @@ class Scanner(private val source: String) {
     private var current = 0    //index of the character we are currently scanning
     private var line = 1       //line counter (helps w error reporting)
     private val tokens = mutableListOf<Token>()  // dynamic list of tokens found
+
+    private val keywords = mapOf(
+        "var" to TokenType.VAR,
+        "fun" to TokenType.FUN,
+        "if" to TokenType.IF,
+        "else" to TokenType.ELSE,
+        "while" to TokenType.WHILE,
+        "for" to TokenType.FOR,
+        "return" to TokenType.RETURN,
+    )
 
     //scan the entire source into tokens
     fun scanTokens(): List<Token> {
@@ -103,24 +113,126 @@ class Scanner(private val source: String) {
             ';' -> addToken(TokenType.SEMICOLON)
             '*' -> addToken(TokenType.STAR)
 
+            //multi chara operators for comparison & assignment
+            '=' -> {
+                if (match('=')) addToken(TokenType.EQUAL_EQUAL)
+                else addToken(TokenType.EQUAL)
+            }
+            '!' -> {
+                if (match('=')) addToken(TokenType.BANG_EQUAL)
+                else addToken(TokenType.BANG)
+            }
+            '<' -> {
+                if (match('=')) addToken(TokenType.LESS_EQUAL)
+                else addToken(TokenType.LESS)
+            }
+            '>' -> {
+                if (match('=')) addToken(TokenType.GREATER_EQUAL)
+                else addToken(TokenType.GREATER)
+            }
+
+            '"' -> string()
+
+            '/' -> {
+                when { 
+                    match ('/') -> {                                // check if next char is /
+                    while (peek() != '\n' && !isAtEnd())            // while loop skip characters until new line
+                    advance()                                   
+                }
+                    match('*') -> {                                                             // for block commments, check if next char is *
+                        while (!(peek() == '*' && peekNext() == '/') && !isAtEnd()) {           // loops until it finds another */ or reaches EOF        
+                            if (peek() == '\n') line++                              
+                            advance()
+                        }
+                        if (!isAtEnd()) {
+                            advance()                                                           // consume *
+                            advance()                                                           // consume /
+                        } else {
+                            println("Undeterminated block comment at $line")
+                        }
+                    }
+                    else -> addToken(TokenType.SLASH)
+                }
+            }
+            
             //Whitespace ignored but newlines increase line count
             ' ', '\r', '\t' -> {}
             '\n' -> line++
 
             else -> {
                 //if unrecognized character, we report it
-                println("Unexpected character: $c on line $line")
+                if (c.isDigit()) {
+                    number()
+                } else if (c.isLetter() || c == '_') {
+                    identifier()
+                } else {
+                    println("Unexpected character: $c on line $line")
+                }
             }
         }
+    }
+    private fun identifier() {
+        while (peek().isLetterOrDigit() || peek() == '_') advance()
+        val text = source.substring(start, current)
+        when (text) {
+            "true" -> addToken(TokenType.TRUE, true)
+            "false" -> addToken(TokenType.FALSE, false)
+            else -> addToken(keywords[text] ?: TokenType.IDENTIFIER)
+        }
+    }
+
+    private fun number() {
+        while (peek().isDigit()) advance()
+        // Handling decimal numbers with an underscore separator, e.g., 123_456.789
+        if (peek() == '.' && peekNext().isDigit()) {
+            // Consume the '.'
+            advance()
+            while (peek().isDigit()) advance()
+        }
+
+        addToken(TokenType.NUMBER, source.substring(start, current).toDouble())
+    }
+
+    private fun peek(): Char {
+        if (isAtEnd()) return '\u0000'
+        return source[current]
+    }
+
+    private fun string() {
+        while (peek() != '"' && !isAtEnd()){
+            if (peek() == '\n') line++
+            advance()
+        }
+        if (isAtEnd()) {
+            println("Undeterminated string at $line")
+            return
+        }
+        advance()
+
+        val value = source.substring(start + 1, current - 1)
+        val lexeme = source.substring(start, current)
+        tokens.add(Token(TokenType.STRING, lexeme, value, line))
+    }
+
+    private fun match(expected: Char): Boolean {
+        if (isAtEnd()) return false
+        if (source[current] != expected) return false
+        current++
+        return true
+    }
+
+    private fun peekNext(): Char {
+        if (current + 1 >= source.length) return '\u0000'
+        return source[current + 1]
     }
 }
 
 //REPL: lets the user interactively type code & see the tokens generated
 fun main() {
-    println("This is the ktlox programming language. Type in your prompt below and see the tokens generated.")    
+    println("Type in your prompt below and see the tokens generated.")    
 
     while (true) {
-        print("> ")                          //as indicator to insert prompt after this symbol
+        print("> ")                          //to insert prompt after this symbol
         val line = readLine() ?: break       //to read input (exit if null / Ctrl+D)
         val scanner = Scanner(line)          //to create scanner for that line
         val tokens = scanner.scanTokens()    //to scan tokens
