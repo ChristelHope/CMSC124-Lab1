@@ -3,42 +3,73 @@ class ParseError(message: String) : RuntimeException(message)
 class Parser(private val tokens: List<Token>) {
     private var current = 0
 
-    fun parse(): Expr? {
+    fun parse(): List<Stmt> {
+        val statements = mutableListOf<Stmt>()
+        while (!isAtEnd()) {
+            statements.add(declaration())
+        }
+        return statements
+    }
+
+    // declaration → functionDeclaration | statement
+    private fun declaration(): Stmt {
         return try {
-            val expr = expression()                                       
-            if (!isAtEnd()) {                                                   //Check to see  we've consumed all tokens except EOF
-                throw error(peek(), "Unexpected token after expression.")
-            }
-            expr
+            if (match(TokenType.FN)) return functionDeclaration("function")
+            statement()
         } catch (e: ParseError) {
-            null
+            synchronize()
+            throw e
         }
     }
 
-    // expression → block | equality
-    private fun expression(): Expr {                                            //
-        if (match(TokenType.INDENT)) {
-            return block()
+    // functionDeclaration
+    private fun functionDeclaration(kind: String): Stmt.Function {
+        val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
+        consume(TokenType.LEFT_PAREN, "Expect left parenthesis after $kind name.")
+        
+        val parameters = mutableListOf<Token>()
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (parameters.size >= 255) {
+                    error(peek(), "Can't have more than 255 parameters.")
+                }
+                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."))
+            } while (match(TokenType.COMMA))
         }
+        consume(TokenType.RIGHT_PAREN, "Expect right parenthesis after parameters.")
+        consume(TokenType.LEFT_BRACE, "Expect left brace before $kind body.")
+        val body = block()
+        return Stmt.Function(name, parameters, body.statements)
+    }
+
+    // statement → expressionStmt | blockStmt
+    private fun statement(): Stmt {
+        if (match(TokenType.LEFT_BRACE)) return Stmt.Block(block().statements)
+        return expressionStatement()
+    }
+
+    // block → "{" declaration* "}"
+    private fun block(): Stmt.Block {
+        val statements = mutableListOf<Stmt>()
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration())
+        }
+        consume(TokenType.RIGHT_BRACE, "Expect right brace after block.")
+        return Stmt.Block(statements)
+    }
+
+    // expressionStmt → expression ";"
+    private fun expressionStatement(): Stmt {
+        val expr = expression()
+        consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        return Stmt.Expression(expr)
+    }
+
+    // expression → equality
+    private fun expression(): Expr {
         return equality()
     }
-    
-    // block → INDENT statement* DEDENT
-    private fun block(): Expr {
-        val statements = mutableListOf<Expr>()
-        
-        while (!isAtEnd() && !check(TokenType.DEDENT) && !check(TokenType.EOF)) {
-            if (match(TokenType.NEWLINE)) {
-                continue // Skip empty lines
-            }
-            val stmt = equality()
-            statements.add(stmt)
-        }
-        
-        consume(TokenType.DEDENT, "Expect DEDENT after block.")
-        return Expr.Block(statements)
-    }
-    //MULTI-CHARACTER OPERATOR HANDLING 
+
     // equality → comparison ( ( "!=" | "==" ) comparison )*
     private fun equality(): Expr {
         var expr = comparison()
@@ -83,20 +114,48 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // unary → ( "!" | "-" ) unary | primary
+    // unary → ( "!" | "-" ) unary | call
     private fun unary(): Expr {
         if (match(TokenType.BANG, TokenType.MINUS)) {
             val op = previous()
             val right = unary()
             return Expr.Unary(op, right)
         }
-        return primary()
+        return call()
     }
 
-    // NOTE: primary → NUMBER | STRING | "true" | "false" | "null" | IDENTIFIER | "(" expression ")"
+    // call → primary ( "(" arguments? ")" )*
+    private fun call(): Expr {
+        var expr = primary()
+        while (true) {
+            if (match(TokenType.LEFT_PAREN)) {
+                expr = finishCall(expr)
+            } else {
+                break
+            }
+        }
+        return expr
+    }
+
+    // finishCall → "(" arguments? ")"
+    private fun finishCall(callee: Expr): Expr {
+        val arguments = mutableListOf<Expr>()
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (arguments.size >= 255) {
+                    error(peek(), "Can't have more than 255 arguments.")
+                }
+                arguments.add(expression())
+            } while (match(TokenType.COMMA))
+        }
+        val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+        return Expr.Call(callee, paren, arguments)
+    }
+
+    // primary → NUMBER | STRING | "true" | "false" | "null" | IDENTIFIER | "(" expression ")"
     private fun primary(): Expr {
         if (match(TokenType.NUMBER)) {
-            return Expr.Literal(previous().literal) // scanner stores Double
+            return Expr.Literal(previous().literal)
         }
         if (match(TokenType.STRING)) {
             return Expr.Literal(previous().literal)
@@ -104,7 +163,9 @@ class Parser(private val tokens: List<Token>) {
         if (match(TokenType.TRUE)) return Expr.Literal(true)
         if (match(TokenType.FALSE)) return Expr.Literal(false)
         if (match(TokenType.NULL)) return Expr.Literal(null)
-        if (match(TokenType.IDENTIFIER)) { return Expr.Variable(previous())}
+        if (match(TokenType.IDENTIFIER)) {
+            return Expr.Variable(previous())
+        }
 
         if (match(TokenType.LEFT_PAREN)) {
             val expr = expression()
@@ -152,5 +213,16 @@ class Parser(private val tokens: List<Token>) {
         val full = "[line ${token.line}] Error $where: $message"
         System.err.println(full)
         return ParseError(full)
+    }
+
+    private fun synchronize() {
+        advance()
+        while (!isAtEnd()) {
+            if (previous().type == TokenType.SEMICOLON) return
+            when (peek().type) {
+                TokenType.FN, TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.RETURN -> return
+                else -> advance()
+            }
+        }
     }
 }
