@@ -194,7 +194,10 @@ class Scanner(private val source: String) {                                     
             "charot" -> addToken(TokenType.FALSE, false)
             "olats" -> addToken(TokenType.NULL, null)
             "nil" -> addToken(TokenType.NULL, null)
-            else -> addToken(keywords[text] ?: TokenType.IDENTIFIER)
+            else -> {
+                val type = keywords[text] ?: TokenType.IDENTIFIER
+                 addToken(type, text)
+            }
         }
     }
 
@@ -243,3 +246,23 @@ class Scanner(private val source: String) {                                     
         return source[current + 1]
     }
 }
+
+/*
+this file implements the lexical analysis phase of the language processor.
+it takes raw source code as input and breaks it into a sequence of tokens that represent the smallest meaningful units (keywords, literals, operators, symbols)
+ 
+ Purpose:
+  -to identify valid lexemes and classify them into token types
+  -to ignore whitespace and comments
+  -to provide clear error messages for invalid or unexpected characters
+ 
+  Key functions:
+  -scanTokens(): returns a list of tokens from the source input
+  -scanToken(): handles the recognition of each individual token
+  -string(), number(), identifier(): handle scanning of literals and keywords
+ 
+ implementation notes:
+  -uses manual character scanning instead of regex (per lab guidelines)
+  -supports both single- and multi-character operators (e.g., ==, <=, !=)
+  -recognizes localized keywords such as "dehins" (for logical NOT)
+ */

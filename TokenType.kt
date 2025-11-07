@@ -1,43 +1,44 @@
-// Lexical Scanner 
-/** Implement a complete lexical scanner that can take source code written in a simple programming language and convert it into a stream of tokens. 
-Your scanner will need to handle:
-
-- Single-character tokens (parentheses, operators, punctuation)     --> Done
-- Multi-character operators (like == and <=)
-- String literals enclosed in quotes --> Done
-- Numeric literals (both integers and decimals) --> Done
-- Identifiers and keywords --> Done
-- Comments (which should be ignored) --> Done
-- Whitespace handling and error reporting                          --> Done
-
-The expected, testable output for this laboratory activity is a Read-eval-print loop (REPL) in the command line. 
-This has your scanner implementation at its heart. 
-The scanner must also provide some form of error handling for invalid or malformed lexemes. 
-
-you're not allowed to use regular expressions in your implementation.
-
-Steps:
-1. Define token types using an enum
-2. Create a token class
-3. Create the scanner
-4. Create the REPL for interactive testing
-**/
-
-                                                                                                // Define all possible token types our language understands
 enum class TokenType {
-    IDENTIFIER, STRING, NUMBER,                                                                      // Literals
+    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,               //single-chara tokens
+    LEFT_BRACKET, RIGHT_BRACKET,
+    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR, COLON,
 
-    VAR, SET, CONST, FUN, CALL, RETURN, IF, ELSE, FOR, WHILE, FOREACH, BREAK, CONTINUE, TRUE, FALSE  // Keywords
-    
-    EQUAL_EQUAL, LESS, GREATER, MINUS_MINUS, PLUS_PLUS, LESS_EQUAL, 
-    GREATER_EQUAL, BANG_EQUAL, BANG, EQUAL,                                                         // Operators (single and multi-character)
+    BANG, BANG_EQUAL,                                             //1 or 2 chara tokens
+    EQUAL, EQUAL_EQUAL,
+    GREATER, GREATER_EQUAL,
+    LESS, LESS_EQUAL, 
 
-    LEFT_PAREN, RIGHT_PAREN, PLUS, MINUS, LEFT_BRACE, RIGHT_BRACE, LEFT_BRACKET, RIGHT_BRACKET, 
-    COMMA, SEMICOLON, DOT, SLASH, STAR, DOUBLE_QUOTE, COLON,                                        // Symbols
+    IDENTIFIER, STRING, NUMBER,                                  //literals
 
-    NULL, EOF, ERROR, PRINT  
-    
-    IMPORT, EXPORT, CLASS, EXTENDS, CONSTRUCTOR, THIS                                                                          // Special markers
-    
-    INDENT, DEDENT, NEWLINE                                                                         // Indentation tokens
+    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NULL, OR,            //keywords english base
+    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, EOF,
+
+    MAY, PAK, SOLID, EKSENA, PUMAPAPEL, BALIK, KUNG, HALA,      //Filipino keywords
+    AWRA, FORDA, BET, AMACCANA, GAME, OMSIM, CHAROT, OLATS,
+    DEHINS, AMP, BAKA, PEG, NAOL, SIMULA, KERATIN,
+    CHIKA, DANGEROUS, ERMATS, ERPATS,
+    AKO, SELFIE,
+
+    EXTENDS, SET, CONST, CALL, FOREACH, BREAK, CONTINUE, NOT,          //other reserved keywords or mappings
+    IN, NEWLINE, INDENT, DEDENT, ERROR,
+    CONSTRUCTOR, IMPORT, EXPORT
 }
+
+/*
+ file contains the TokenType enumeration -->which lists all possiblecategories of tokens recognized by the language (operators,literals,keywords,punctuation,etc.)
+ 
+ Purpose:
+  -to classify each token produced by the Scanner
+  -to provide a consistent reference of all valid token types across modules
+ 
+ Ex TokenType entries:
+ -Arithmetic: PLUS, MINUS, STAR, SLASH
+ -Comparison: LESS, GREATER, EQUAL_EQUAL
+ -Logical: AND, OR, BANG    (mapped from dehins)
+ -Literals: IDENTIFIER, STRING, NUMBER
+ -Keywords: IF, ELSE, TRUE, FALSE, etc.
+ 
+ importance:
+  parser & scanner rely on this enumeration to maintain consistency in recognizing & interpreting diff language constructs
+ */
+

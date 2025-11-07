@@ -1,16 +1,3 @@
-//recursive descent parser
-//parser throws parse errors that print a message and return
-// null from parse() so the REPL continues
-
-//it uses tokens exactly as your scanner emits them
-
-//Take the list of tokens from your scanner as input
-//Build an Abstract Syntax Tree representing the parsed expression
-//Handle operator precedence correctly
-//Support grouping with parentheses
-//Include basic error reporting for malformed expressions (unbalanced parenthesis, etc.)
-
-// Parser.kt
 class ParseError(message: String) : RuntimeException(message)
 
 class Parser(private val tokens: List<Token>) {
@@ -40,9 +27,8 @@ class Parser(private val tokens: List<Token>) {
         }
     }
 
-    // -----------------------
-    // DECLARATIONS & STATEMENTS
-    // -----------------------
+
+ //DECLARATIONS & STATEMENTS
     private fun declaration(): Stmt {
         try {
             if (match(TokenType.CLASS)) return classDeclaration()
@@ -51,7 +37,7 @@ class Parser(private val tokens: List<Token>) {
             return statement()
         } catch (err: ParseError) {
             synchronize()
-            // return an empty statement so the program continues
+         // return an empty statement so the program continues
             return Stmt.Expression(Expr.Literal(null))
         }
     }
@@ -66,23 +52,6 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Var(name, initializer)
     }
 
-    private fun functionDeclaration(kind: String): Stmt.Function {
-        val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
-        consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
-        val parameters = mutableListOf<Token>()
-        if (!check(TokenType.RIGHT_PAREN)) {
-            do {
-                if (parameters.size >= 255) {
-                    throw error(peek(), "Can't have more than 255 parameters.")
-                }
-                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."))
-            } while (match(TokenType.COMMA))
-        }
-        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
-        val body = blockStatement()
-        return Stmt.Function(name, parameters, body)
-    }
-
     private fun statement(): Stmt {
         if (match(TokenType.IF, TokenType.KUNG)) return ifStatement()
         if (match(TokenType.FOR, TokenType.AWRA)) return forStatement()
@@ -95,7 +64,7 @@ class Parser(private val tokens: List<Token>) {
             consumeOptionalSemicolon()
             return Stmt.Print(value)
         }
-        // default: expression statement
+        //default: expression statement since no other statement matched
         val expr = expression()
         consumeOptionalSemicolon()
         return Stmt.Expression(expr)
@@ -123,9 +92,9 @@ class Parser(private val tokens: List<Token>) {
     }
 
     private fun forStatement(): Stmt {
-        // Support: awra IDENTIFIER in expression { ... }  or classical C-style for if scanner emits tokens
+        //Support: awra IDENTIFIER in expression { ... }  or classical C-style for if scanner emits tokens
         if (match(TokenType.LEFT_PAREN)) {
-            // C-style for (init; cond; inc) - optional
+            //C-style for (init; cond; inc) - optional
             val initializer = if (!match(TokenType.SEMICOLON)) {
                 val init = expression()
                 consume(TokenType.SEMICOLON, "Expect ';' after loop initializer.")
@@ -194,13 +163,11 @@ class Parser(private val tokens: List<Token>) {
         }
     }
 
-    // -----------------------
-    // Expressions (precedence)
-    // -----------------------
-    // expression → assignment
+
+ //expressions (precedence), expression->assignment
     private fun expression(): Expr = assignment()
 
-    // assignment → IDENTIFIER "=" assignment | equality
+//assignment-> ID"=" assignment|equality
     private fun assignment(): Expr {
         val expr = equality()
         if (match(TokenType.EQUAL, TokenType.PAK)) {
@@ -215,7 +182,7 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // equality → comparison ( ( "!=" | "==" ) comparison )*
+//equality->comparison (("!="|"==")comparison)*
     private fun equality(): Expr {
         var expr = comparison()
         while (match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
@@ -226,7 +193,7 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )*
+//comparison ->term ((">"|">="|"<"|"<=")term)*
     private fun comparison(): Expr {
         var expr = term()
         while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
@@ -237,7 +204,7 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // term → factor ( ( "-" | "+" ) factor )*
+//term ->factor (( "-"|"+")factor)*
     private fun term(): Expr {
         var expr = factor()
         while (match(TokenType.MINUS, TokenType.PLUS)) {
@@ -248,7 +215,7 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // factor → unary ( ( "/" | "*" ) unary )*
+//factor->unary (("/"|"*")unary)*
     private fun factor(): Expr {
         var expr = unary()
         while (match(TokenType.SLASH, TokenType.STAR)) {
@@ -259,9 +226,9 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // unary → ( "!" | "-" ) unary | primary
+//unary-> ("!"|"-") unary|primary
     private fun unary(): Expr {
-        if (match(TokenType.BANG, TokenType.MINUS)) {
+        if (match(TokenType.BANG, TokenType.NOT, TokenType.MINUS)) {
             val op = previous()
             val right = unary()
             return Expr.Unary(op, right)
@@ -269,7 +236,7 @@ class Parser(private val tokens: List<Token>) {
         return call()
     }
 
-    // call → primary ( "(" arguments? ")" | "." IDENTIFIER )*
+//call ->primary ("("arguments?")"|"."ID)*
     private fun call(): Expr {
         var expr = primary()
         while (true) {
@@ -293,10 +260,10 @@ class Parser(private val tokens: List<Token>) {
         return expr
     }
 
-    // NOTE: primary → NUMBER | STRING | "true" | "false" | "null" | IDENTIFIER | "keratin" | "(" expression ")"
+//note that primary-> NUMBER| STRING| "true"| "false"|"null"| IDENTIFIER| "keratin"|"(" expression ")"
     private fun primary(): Expr {
         if (match(TokenType.NUMBER)) {
-            return Expr.Literal(previous().literal) // scanner stores Double
+            return Expr.Literal(previous().literal) //scanner stores Double
         }
         if (match(TokenType.TRUE)) return Expr.Literal(true)
         if (match(TokenType.FALSE)) return Expr.Literal(false)
@@ -314,9 +281,8 @@ class Parser(private val tokens: List<Token>) {
         throw error(peek(), "Expect expression.")
     }
 
-    // -----------------------
-    // Class specific parsing
-    // -----------------------
+ 
+ // Class specific parsing
     private fun classDeclaration(): Stmt {
         val name = consume(TokenType.IDENTIFIER, "Expect class name after 'peg'.")
         var superclass: Expr.Variable? = null
@@ -333,7 +299,7 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Class(name, superclass, methods)
     }
 
-    // function used inside classes or top level
+//function used inside classes or top level
     private fun functionDeclaration(kind: String): Stmt.Function {
         val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
         consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
@@ -350,9 +316,8 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Function(name, parameters, body, isConstructor)
     }
 
-    // -----------------------
-    // HELPERS
-    // -----------------------
+
+// HELPERS
     private fun match(vararg types: TokenType): Boolean {
         for (t in types) {
             if (check(t)) {
@@ -400,7 +365,7 @@ class Parser(private val tokens: List<Token>) {
     private fun synchronize() {
         advance()
         while (!isAtEnd()) {
-            if (previous().type == TokenType.SEMICOLON) RETURN
+            if (previous().type == TokenType.SEMICOLON) return
             when (peek().type) {
                 TokenType.CLASS, TokenType.FUN, TokenType.VAR, TokenType.FOR,
                 TokenType.IF, TokenType.WHILE, TokenType.RETURN -> return
@@ -408,5 +373,31 @@ class Parser(private val tokens: List<Token>) {
             }
         }
     }
-    
 }
+
+
+/*
+ This file implements the recursive descent parser for the language; it converts a list of tokens from the Scanner into an AST following a cfg
+ 
+purpose:
+ -to validate syntax structure based on grammar rules
+ -to build AST representations for later interpretation/printing
+ -to report syntax errors clearly and recover gracefully
+ 
+Grammar:
+expression -> equality ;
+equality  -> comparison(( "!=" | "==" )comparison)*;
+comparison-> term((">" | ">=" | "<" | "<=")term)*;
+term      -> factor (("-" | "+") factor )*;
+factor    -> unary (("/"|"*") unary)*;
+unary     -> ("!"|"-") unary | primary;
+primary   -> NUMBER | STRING | "true" | "false" | "("expression")";
+ 
+ Key functions:
+  -parse(): entry point that returns the root Expr of the parsed tree
+  -expression(), term(), factor(), unary(), primary(): grammar rule methods
+  -error(), synchronize(): handle syntax errors gracefully
+ 
+ importance:
+ -this parser enforces grammatical correctness & creates structured representations that can later be evaluated/optimized/translated.
+ */

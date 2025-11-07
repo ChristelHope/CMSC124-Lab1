@@ -10,18 +10,31 @@ fun main() {                                                                    
         val tokens = scanner.scanTokens()                                                     // to scan tokens
 
         val parser = Parser(tokens)                                                           // to create parser for those tokens
-        val expr = parser.parse()                                                             // to parse tokens into an expression (AST)
-
+        val expr = parser.parseExpressionForREPL()                                                            // to parse tokens into an expression (AST)
 
         if(expr != null) {                                                                    // if parsing was successful
             println(AstPrinter.print(expr))                                                   // print the AST in parenthesized format
         } else {
             println("Parsing error occurred.")                                                // if there was a parsing error
         }
-       // for (token in tokens) {
-         //   println(token)                                                                  // to print tokens for debugging
-        //}
     }
 }
 
-//_______________________________________________________
+/*
+ This file serves as the main entry point of the program. It integrates the
+ Scanner and Parser modules to process a source code input, convert it into a stream of tokens, and then parse these tokens into an Abstract Syntax Tree (AST).
+ The resulting AST is printed using the AstPrinter for verification.
+ 
+ Purpose:
+ -to connect all major components (Scanner, Parser, AST Printer)
+ -to execute the full lexical + syntactic analysis flow
+ -to simulate a REPL-like environment for user testing and debugging
+ 
+  Key components:
+  -main(): initializes the scanner and parser, handles user input, and prints results.
+ 
+Ex:
+ >kotlin MainKt
+ Input:dehins omsim
+ Output:(! true)
+ */

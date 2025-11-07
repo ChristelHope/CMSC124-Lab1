@@ -1,3 +1,4 @@
+
 val keywords = mapOf(
     // Variables & Functions
     "may" to TokenType.VAR,
@@ -6,6 +7,7 @@ val keywords = mapOf(
     "eksena" to TokenType.FUN,
     "pumapapel" to TokenType.CALL,
     "balik" to TokenType.RETURN,
+    
 
     // Conditionals
     "kung" to TokenType.IF,
@@ -25,7 +27,7 @@ val keywords = mapOf(
     "charot" to TokenType.FALSE,
     "olats" to TokenType.NULL,
 
-    "dehins" to TokenType.NOT,
+    "dehins" to TokenType.BANG,
 
     "amp" to TokenType.AND,
     "baka" to TokenType.OR,
@@ -44,3 +46,22 @@ val keywords = mapOf(
     "ermats" to TokenType.IMPORT,
     "erpats" to TokenType.EXPORT
 )
+
+/*
+
+Desc:
+ This file defines the mapping of localized language keywords to their
+ corresponding TokenType entries. It allows the Scanner to recognize reserved words in the custom dialect (omsim, dehins, etc).
+
+ purpose:
+  -to associate language keywords (custom or standard) with token categories
+  - to enable support for localized or domain-specific vocabulary
+ 
+  Ex mappings:
+ -"omsim"-> TokenType.TRUE
+ -"charot"-> TokenType.FALSE
+ -"dehins"-> TokenType.BANG (logical NOT)
+ 
+ importance:
+  this modular keyword dictionary keeps the Scanner implementation clean, and allows easy expansion or localization of the language vocabulary.
+ */
