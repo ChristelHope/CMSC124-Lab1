@@ -1,50 +1,65 @@
-"Teleris"
+Teleris (Taglish Slang Programming Language)
 
 Creator
 Eleah Joy Melchor
 Christel Hope Ong
 
-Lab2 CFG:
 
-	  program        → expression ;
-  expression     → term ( ( "+" | "-" ) term )* ;
-  term           → factor ( ( "*" | "/" ) factor )* ;
-  factor         → NUMBER
-                 | IDENTIFER    | "(" expression ")"  | "-" factor ;
+[GRAMMAR]
+    Lab2 CFG:
+    program        → expression ;
+    expression     → term ( ( "+" | "-" ) term )* ;
+    term           → factor ( ( "*" | "/" ) factor )* ;
+    factor         → NUMBER
+                    | IDENTIFER    | "(" expression ")"  | "-" factor ;
+                   
 
 
 Language Overview [Provide a brief description of your programming language - what it's a designed for, its main characteristics]
+    Teleris is a Taglish-coded barkada scripting language designed to make programming relatable, funny, and expressive for Filipino learners/users. It keeps C/JS familiar for those who want to learn it while embracing the modern Filipino linguistic culture (Gen Z slang)  for keywords to mix programming logic with cultural humor.
+    Designed to be beginner-friendly, easy to read, ideal for programming languages experiments, and shows how language design can also be artistic, cultural, and humorous, not only technical.
     Teleris is a small yet dynamically typed language designed to be readable and easy to use. Targets learners and small compiler experiments. Syntax is familiar to scripting languages (clear keywords, {} blocks, C-style operators) while maintaining the constructs needed to explore language tooling (scanner to parser, then to interpreter) 
 
 Keywords [List all reserved words that cannot be used as identifiers - include the keyword and a brief description of its purpose]
 
-    set
+    may
     used to declare variable
-    keep
+    pak
+    Used to set
+    solid
     used to declare constants
-    fn
+    eksena
     used to declare functions
-    return
+    pumapapel
+    Used to call functions
+    balik
     returns the output of function
-    if, else
+    kung, hala, hala kung
     conditionals
-    while, for, in
+    awra, forda, bet
     looping and iterations
-    stop & continue
+    amaccana, game
     used to control loops
-    true, false, null
+    omsim, charot, olats (null)
     boolean literals
-    class
+    peg
     Create objects
-    extends 
+    naol
     For inheritance
-    import & export 
-    And                                                             
+    ermats & erpats 
+    Imports and exports
+    amp                                                     
     True only if both operands are true
-    or
+    baka
     True when at least one operand is true
-    not
+    dehins
     Negates the expression
+    chika
+    print
+    DANGEROUS
+    error
+
+
 
 Operators [List all operators organized by category (arithmetic, comparison, logical, assignment, etc.)]
 
@@ -58,7 +73,8 @@ Operators [List all operators organized by category (arithmetic, comparison, log
     /
     Remainder/Rem
     %
-    Equal equal
+
+    equal
     ==
     Not equal
     !=
@@ -70,12 +86,14 @@ Operators [List all operators organized by category (arithmetic, comparison, log
     <=
     Greater than or equal to
     >=
+
     Not
     !
     Logical And
     &&
     Logical Or
     ||
+
     Equal
     =
     Multiplication assignment
@@ -86,6 +104,7 @@ Operators [List all operators organized by category (arithmetic, comparison, log
     -=
     Division assignment
     /=
+
     Increment
     ++
     Decrement
@@ -93,72 +112,99 @@ Operators [List all operators organized by category (arithmetic, comparison, log
     Colon
     :
 
+
 Literals [Describe the format and syntax for each type of literal value (e.g., numbers, strings, characters, etc.) your language supports]
     Numbers: 42, 4.2
     Strings: use double-quotations with \n and \t
-    Booleans: true, false
-    Null: null
+    Booleans: omsim (true), charot (false)
+    Null: olats (null or nil)
     Collections: 
     Arrays: [a, b, c]
     Maps: { name: “Eleah” }
 
 Identifiers [Define the rules for valid identifiers (variable names, function names, etc.) and whether they are case-sensitive]
     Rules for variable names: 
-        Start with A-Z, a-z, dollar sign ($), and underscore.
-        Remaining characters may be letters, digits, or underscores.
-        Case sensitive for simplifying implementation and reducing ambiguity 
-        Naming conventions: camelCase for variables and functions, and PascalCase for classes and types
+    Start with A-Z, a-z, dollar sign ($), and underscore.
+    Remaining characters may be letters, digits, or underscores.
+    Case sensitive for simplifying implementation and reducing ambiguity 
+    Naming conventions: camelCase for variables and functions, and PascalCase for classes and types
     Comments [Describe the syntax for comments and whether nested comments are supported]
-        Single-line comments: //
-        Multi-line comments: /- -/
+    Single-line comments: //
+    Multi-line comments: /- … -/
     Syntax Style [Describe whether whitespace is significant, how statements are terminated, and what delimiters are used for blocks and grouping]
-        Indentation-sensitive
-        What if automatic semicolon insertion 
-        Grouping: { … } for blocks and ( … ) for expression grouping
-        Function syntax:
-            fn varName (parameter1, parameter2) { … }
-        Module boundary: 
-            Import lib from “lib”
-
+    Indentation-sensitive
+    Semicolon automatically inserted
+    C/JS-style braces Grouping: { … } for blocks 
+    ( … ) for expression grouping
+    Function syntax:
+    eksena functionName(parameter1, parameter2) { … }
+    Module boundary: 
+    Import lib from “lib”
 
 Sample Code [Provide a few examples of valid code in your language to demonstrate the syntax and features]
     Variable & arithmetic
+    may x = 20		//declare var
+    may y = 3.14
+    pak x = x + 10		//assign new val	
+    chika(x) // print Output: 30	
 
-        let x = 20
-        var y = 3.14
-        x = x + 10
-        Function
+    may edad = 21	
+    solid pi = 3.14		
+    pak edad = edad + 1	
 
-        fn add(a,b){
-            return a+b;
-        } let z =add(2,3)
+    Function
+    eksena add(a, b) {	//function declaration
+        balik a + b		//return
+    }
 
-    Condition & loops
+    may z = pumapapel add(2, 3)		//function call
+    chika(z) // Output: 5
 
-        if(x>0){
-            x=x-1;
-        } else {
-            x=0;
-        }
-        for (i in [1,2,3]){
-            print(i)
-        }
+
+    eksena greet(pangalan) {
+        balik "Hello " + pangalan + "! Kamusta coding journey mo?"
+    }
+
+    may res = pumapapel greet("Beshy")
+    chika (res)
+    Conditionals
+    kung (edad > 18) {
+        chika("Legal ka na, go awra!")
+    } hala {
+        chika("Minor ka pa, uwian na!")
+    }
+    Loops
+    forda (i bet [1,2,3]) {
+        chika(i)
+    }
+    awra (omsim) {
+        chika("Coding pa more")
+        amaccana //break
+    }
+
+    awra (omsim) {
+        chika("Loop start")
+        game        // continue
+        amaccana    // break
+    }
 
     Arrays & maps
+    may tropa = ["Eleah", "Chong", "Joy"]
 
-        let arr=[1,2,3]
-        let person = {name:"Eleah", age: 21}
-
+    may tao = {
+        name: "Eleah",
+        age: 21
+    }
     Comments & strings
+    // Beshy, comment lang ako
+    /-
+    Chika chika lang bes
+    -/
 
-        //single line comment
-        /-
-        multiple line comment
-        -/
-        let s="this that \"quote\" "
+    may s = "Learning \"Teleris\" kasi trip ko lang!"
+
 
 Design Rationale [Explain the reasoning behind your design choices]
+    Teleris is not only beginner-friendly but also is a taglish-friendly language that aims to create a balance between academic and cultural goals, aside from expressing creativity, enjoyment, and freedom in programming language design. It is dynamic typed for faster classroom and compiler learning, to study lexing, parsing, ASL, language semantics, and minimal syntax means implementation shouldn’t be too complex, have a familiar C/JS flow, and dynamic typing for simplicity, while making programming feel like Pinoy, fun, and full of emotions by using Filipino slang keywords & humor-driven messages to motivate learners, and encouraging creativity in programming language design.
+    By modifying keyword vocabulary while preserving grammatical expression, Teleris maintains technical validity while being unique and creative enough to be considered a custom language, and preserving core language design concepts while bringing Filipino culture into code. This language helps prove that programming languages aren’t only about logic, but also are culture, emotion, and identity. 
 
-    The design of Telereis was made to be simple, readable, and familiar so that those who learns it can focus on studying programming languages functionalities (how they work) instead of struggling with syntax (especially for those who don’t use/learn one programming language and want to know different programming languages). The style of this programming language is kind of similar to some other common languages such as C and JS, since it is easier to understand keywords, operators, and control flow (and we want to make it to be like that way as much as possible). It also uses dynamic typing so it's not needed for variables to use declaration so that it is lighter and faster to implement (for classroom projects/learning purposes).
-
-    The keywords are purposefully chosen to be clear (e.g. set, fn, const) & to separate mutable and constant variables so that the difference can easily be seen between changeable and fixed values. Arrays and maps were included to give enough tools for real examples yet w/o making it too complicated. String w/ escape characters, common operators, and comments added as to be used for normal programs and to practice parsing & scanning…so basically the goal is to make it small yet somehow still powerful enough to write clear examples and test the full route from scanner to interpreter. So far, we have defined the vocabulary of Teleris for this activity, and we hope and plan to continue making it work for later projects.
