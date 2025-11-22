@@ -1,28 +1,42 @@
 enum class TokenType {
-    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,               //single-chara tokens
+
+    // Single-character tokens
+    LEFT_PAREN, RIGHT_PAREN,
     LEFT_BRACKET, RIGHT_BRACKET,
-    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR, COLON,
+    COMMA, DOT, COLON,
 
-    BANG, BANG_EQUAL,                                             //1 or 2 chara tokens
+    PLUS, MINUS, STAR, SLASH, PERCENT, CARET,
+
+    // One or two character tokens
     EQUAL, EQUAL_EQUAL,
+    BANG, BANG_EQUAL,
     GREATER, GREATER_EQUAL,
-    LESS, LESS_EQUAL, 
+    LESS, LESS_EQUAL,
+    AND_AND, OR_OR,
 
-    IDENTIFIER, STRING, NUMBER,                                  //literals
+    // Literals
+    IDENTIFIER,
+    NUMBER,
+    STRING,
+    MULTILINE_STRING,
+    DATE,
+    TRUE, FALSE,
+    NULL,
 
-    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NULL, OR,            //keywords english base
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, EOF,
+    // Keywords
+    LET, SET,
+    IF, THEN, ELSE, ELSEIF, END,
+    PRINT, LOG,
 
-    MAY, PAK, SOLID, EKSENA, PUMAPAPEL, BALIK, KUNG, HALA,      //Filipino keywords
-    AWRA, FORDA, BET, AMACCANA, GAME, OMSIM, CHAROT, OLATS,
-    DEHINS, AMP, BAKA, PEG, NAOL, SIMULA, KERATIN,
-    CHIKA, DANGEROUS, ERMATS, ERPATS,
-    AKO, SELFIE,
+    FROM, TO, STEP,
 
-    EXTENDS, SET, CONST, CALL, FOREACH, BREAK, CONTINUE, NOT,          //other reserved keywords or mappings
-    IN, NEWLINE, INDENT, DEDENT, ERROR,
-    CONSTRUCTOR, IMPORT, EXPORT
+    // Logical words
+    AND, OR, NOT,
+
+    // Misc
+    NEWLINE, INDENT, DEDENT, EOF, ERROR
 }
+
 
 /*
  file contains the TokenType enumeration -->which lists all possiblecategories of tokens recognized by the language (operators,literals,keywords,punctuation,etc.)

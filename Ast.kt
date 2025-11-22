@@ -1,43 +1,27 @@
 sealed class Expr {
     data class Literal(val value: Any?) : Expr()
     data class Variable(val name: Token) : Expr()
-    data class Grouping(val expression: Expr) : Expr()
     data class Unary(val operator: Token, val right: Expr) : Expr()
     data class Binary(val left: Expr, val operator: Token, val right: Expr) : Expr()
+    data class Grouping(val expression: Expr) : Expr()
     data class Call(val callee: Expr, val paren: Token, val arguments: List<Expr>) : Expr()
-    data class Get(val obj: Expr, val name: Token) : Expr()
-    data class Assign(val name: Token, val value: Expr) : Expr()
-    data class This(val keyword: Token) : Expr()
+    data class ListLiteral(val elements: List<Expr>) : Expr()
 }
 
 sealed class Stmt {
-    data class Expression(val expression: Expr) : Stmt()
-    data class Print(val expression: Expr) : Stmt()
-    data class Var(val name: Token, val initializer: Expr?) : Stmt()
+    data class Let(val name: Token, val initializer: Expr) : Stmt()
+    data class SetStmt(val name: Token, val value: Expr) : Stmt()
+    data class ExpressionStmt(val expression: Expr) : Stmt()
+    data class Print(val value: Expr) : Stmt()
+
     data class Block(val statements: List<Stmt>) : Stmt()
-    data class If(val condition: Expr, val thenBranch: Stmt, val elseBranch: Stmt?) : Stmt()
-    data class While(val condition: Expr, val body: Stmt) : Stmt()
-    data class For(
-        val initializer: Expr?, 
-        val condition: Expr?, 
-        val increment: Expr?, 
-        val body: Stmt
-    ) : Stmt()
-    data class ForEach(val iterator: Token, val iterable: Expr, val body: Stmt) : Stmt()
-    data class Return(val keyword: Token, val value: Expr?) : Stmt()
-    data class Function(
-        val name: Token,
-        val params: List<Token>,
-        val body: Stmt.Block,
-        val isConstructor: Boolean = false
-    ) : Stmt()
-    data class Class(
-        val name: Token,
-        val superclass: Expr.Variable?,
-        val methods: List<Function>
+
+    data class IfStmt(
+        val condition: Expr,
+        val thenBranch: Stmt,
+        val elseBranch: Stmt?
     ) : Stmt()
 }
-
 
 /*
  this file defines all Abstract Syntax Tree node classes used by the parser.

@@ -18,7 +18,7 @@ class Evaluator {
                         }
                     }
 
-                    TokenType.BANG, TokenType.NOT, TokenType.DEHINS -> !isTruthy(right)
+                    TokenType.BANG, TokenType.NOT -> !isTruthy(right)
 
                     else -> null
                 }
@@ -32,11 +32,9 @@ class Evaluator {
 
                     // Arithmetic
                     TokenType.PLUS -> {
-                        // number + number
                         if (left is Double && right is Double) {
                             return left + right
                         }
-                        // string + string
                         if (left is String && right is String) {
                             return left + right
                         }
@@ -87,17 +85,10 @@ class Evaluator {
                 }
             }
 
-            // IGNORE all advanced nodes → Lab 3 does not evaluate them
-            is Expr.Variable,
-            is Expr.Assign,
-            is Expr.Call,
-            is Expr.Get,
-            is Expr.This -> {
-                throw RuntimeError(
-                    Token(TokenType.ERROR, "", null, 0),
-                    "Feature not supported in Lab 3 evaluator."
-                )
-            }
+            else -> throw RuntimeError(
+                Token(TokenType.ERROR, "", null, 0),
+                "Unsupported expression in Evaluator."
+            )
         }
     }
 
@@ -118,17 +109,3 @@ class Evaluator {
         throw RuntimeError(operator, "Operands must be numbers.")
     }
 }
-
-    fun formatNumber(x: Double): String {
-        return if (x % 1.0 == 0.0) {
-            x.toInt().toString()       // remove .0
-        } else {
-            x.toString()               // keep decimals
-        }
-    }
-
-
-//LAB 3 files (evaluator.kt, RuntimeError.kt, Main.kt) 
-//This is the core evaluator that computes values from expressions.
-//Works with: Literal,Grouping,Unary,Binary, 
-//And implements: truthiness rules, numeric checks, operator overloading for + (string concatenation), division by zero errors//
