@@ -17,10 +17,7 @@ val keywords: Map<String, TokenType> = mapOf(
     "true" to TokenType.TRUE,
     "false" to TokenType.FALSE,
     "null" to TokenType.NULL,
-
-    "from" to TokenType.FROM,
-    "to" to TokenType.TO,
-    "step" to TokenType.STEP,
+     "nil" to TokenType.NIL,
 
     // Logical words
     "and" to TokenType.AND,

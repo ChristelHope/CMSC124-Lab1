@@ -50,7 +50,7 @@ class Scanner(private val source: String) {
         tokens.add(Token(type, text, literal, line))
     }
 
-        private fun handleIndentation() {
+    private fun handleIndentation() {
         var indentLevel = 0
         while (peek() == ' ' || peek() == '\t') {
             if (peek() == ' ') {
@@ -98,6 +98,8 @@ class Scanner(private val source: String) {
             ')' -> addToken(TokenType.RIGHT_PAREN)
             '[' -> addToken(TokenType.LEFT_BRACKET)
             ']' -> addToken(TokenType.RIGHT_BRACKET)
+            '{' -> addToken(TokenType.LEFT_BRACE)
+            '}' -> addToken(TokenType.RIGHT_BRACE)
             ',' -> addToken(TokenType.COMMA)
             ':' -> addToken(TokenType.COLON)
             '.' -> addToken(TokenType.DOT)
@@ -202,10 +204,32 @@ class Scanner(private val source: String) {
 
         val numericValue = normalized.toDouble()
 
+        // currency suffix (e.g., "1000 USD")
+        skipWhitespace()
+        val suffix = tryParseCurrencySuffix()
+        if (suffix != null) {
+            addToken(TokenType.MONEY, FinLiteMoneyLiteral(suffix, numericValue))
+            return
+        }
+
         // Plain number
         addToken(TokenType.NUMBER, numericValue)
     }
 
+    private fun tryParseCurrencySuffix(): String? {
+        if (!peek().isLetter()) return null
+
+        val isoStart = current
+        while (peek().isLetter()) advance()
+
+        val iso = source.substring(isoStart, current).uppercase()
+
+        return if (isIsoCurrency(iso)) iso else null
+    }
+
+    private fun isIsoCurrency(s: String): Boolean {
+        return s in listOf("USD", "PHP", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY")
+    }
 
     private fun isDateLiteral(): Boolean {
         if (start + 9 >= source.length) return false
@@ -228,6 +252,23 @@ class Scanner(private val source: String) {
             return
         }
 
+        // MONEY prefix (e.g., "USD 1000")
+        if (isIsoCurrency(text.uppercase())) {
+            skipWhitespace()
+            val valueStart = current
+            if (peek().isDigit()) {
+                numberOrMoneyOrDate()
+                val last = tokens.removeLast()
+                if (last.type == TokenType.NUMBER) {
+                    val amount = last.literal as Double
+                    addToken(TokenType.MONEY, FinLiteMoneyLiteral(text.uppercase(), amount))
+                } else {
+                    error("Currency prefix must be followed by number")
+                }
+                return
+            }
+        }
+
         // Regular identifier
         addToken(TokenType.IDENTIFIER, text)
     }
@@ -238,9 +279,10 @@ class Scanner(private val source: String) {
             if (peek() == '\n') line++
             advance()
         }
-
+    // report missing quote in string
         if (isAtEnd()) {
-            error("Unterminated string literal")
+            error("Unterminated string literal at line $line: missing closing quote")
+            addToken(TokenType.ERROR, "Unterminated string")
             return
         }
 
@@ -266,13 +308,19 @@ class Scanner(private val source: String) {
             advance()
         }
 
-        error("Unterminated multiline string")
+        error("Unterminated multiline string at line $line: missing closing triple quotes")
+        addToken(TokenType.ERROR, "Unterminated multiline string")
     }
 
     // Utility: skip whitespace (not newline)
     private fun skipWhitespace() {
         while (peek() == ' ' || peek() == '\t' || peek() == '\r') advance()
     }
+
+    data class FinLiteMoneyLiteral(
+        val currency: String,
+        val amount: Double
+    )
 
     private fun error(message: String) {
         System.err.println("[line $line] Error: $message")

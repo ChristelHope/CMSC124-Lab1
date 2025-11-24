@@ -4,12 +4,30 @@ class Parser(private val tokens: List<Token>) {
 
     private var current = 0
 
-    fun parse(): List<Stmt> {
+    fun parse(): Stmt {
         val statements = mutableListOf<Stmt>()
         while (!isAtEnd()) {
-            statements.add(statement())
+            skipSeparators()
+            if (isAtEnd()) break
+            // Skip error tokens from scanner
+            if (peek().type == TokenType.ERROR) {
+                advance()
+                continue
+            }
+            try {
+                statements.add(statement())
+            } catch (e: RuntimeException) {
+                // Synchronize on next statement
+                synchronize()
+            }
         }
-        return statements
+        // Return single statement tree: if one statement, return it directly;
+        // if multiple, wrap in Block; if none, return empty Block
+        return when (statements.size) {
+            0 -> Stmt.Block(emptyList())
+            1 -> statements[0]
+            else -> Stmt.Block(statements)
+        }
     }
 
     // ==========================================================
@@ -21,6 +39,7 @@ class Parser(private val tokens: List<Token>) {
         if (match(TokenType.SET)) return setStmt()
         if (match(TokenType.PRINT, TokenType.LOG)) return printStmt()
         if (match(TokenType.IF)) return ifStmt()
+        if (match(TokenType.LEFT_BRACE)) return braceBlock()
 
         return exprStmt()
     }
@@ -78,14 +97,28 @@ class Parser(private val tokens: List<Token>) {
 
     private fun block(): Stmt {
         val statements = mutableListOf<Stmt>()
+        skipSeparators()
         while (!check(TokenType.END) && !check(TokenType.ELSE) && !isAtEnd()) {
             statements.add(statement())
+            skipSeparators()
         }
         return Stmt.Block(statements)
     }
 
+    private fun braceBlock(): Stmt {
+        val statements = mutableListOf<Stmt>()
+        skipSeparators()
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(statement())
+            skipSeparators()
+        }
+        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+        skipSeparators()
+        return Stmt.Block(statements)
+    }
+
     // ==========================================================
-    // EXPRESSIONS (Pratt Parser)
+    // EXPRESSIONS
     // ==========================================================
 
     private fun expression(): Expr = assignment()
@@ -215,7 +248,6 @@ class Parser(private val tokens: List<Token>) {
             return Expr.Literal(previous().literal)
         }
         
-        // Handle identifiers
         if (match(TokenType.IDENTIFIER)) {
             return Expr.Variable(previous())
         }
@@ -238,6 +270,17 @@ class Parser(private val tokens: List<Token>) {
         }
         
         throw error(peek(), "Expected expression.")
+    }
+
+    private fun readExprList(): List<Expr> {
+        val values = mutableListOf<Expr>()
+        if (!check(TokenType.RIGHT_BRACKET)) {
+            values.add(expression())
+            while (match(TokenType.COMMA)) {
+                values.add(expression())
+            }
+        }
+        return values
     }
 
     private fun finishCall(callee: Expr): Expr {
@@ -267,6 +310,17 @@ class Parser(private val tokens: List<Token>) {
             }
         }
         return false
+    }
+
+    private fun skipSeparators() {
+        while (true) {
+            when {
+                match(TokenType.NEWLINE) -> continue
+                match(TokenType.INDENT) -> continue
+                match(TokenType.DEDENT) -> continue
+                else -> break
+            }
+        }
     }
 
     private fun consume(type: TokenType, message: String): Token {

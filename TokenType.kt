@@ -3,6 +3,7 @@ enum class TokenType {
     // Single-character tokens
     LEFT_PAREN, RIGHT_PAREN,
     LEFT_BRACKET, RIGHT_BRACKET,
+    LEFT_BRACE, RIGHT_BRACE,
     COMMA, DOT, COLON,
 
     PLUS, MINUS, STAR, SLASH, PERCENT, CARET,
@@ -19,16 +20,15 @@ enum class TokenType {
     NUMBER,
     STRING,
     MULTILINE_STRING,
+    MONEY,
     DATE,
     TRUE, FALSE,
-    NULL,
+    NULL, NIL,
 
     // Keywords
     LET, SET,
     IF, THEN, ELSE, ELSEIF, END,
     PRINT, LOG,
-
-    FROM, TO, STEP,
 
     // Logical words
     AND, OR, NOT,
