@@ -2,8 +2,8 @@ FinLite Programming Language
 
 
 Creator
-Eleah Joy Melchor
-Christel Hope Ong
+Eleah Joy Melchor - levi00sa
+Christel Hope Ong - ChristelHope
 
 
 [GRAMMAR]
