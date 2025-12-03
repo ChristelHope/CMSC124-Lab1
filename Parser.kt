@@ -29,6 +29,7 @@ class Parser(private val tokens: List<Token>) {
             match(PRINT, LOG) -> printStmt()
             match(IF) -> ifStmt()
             match(RUN) -> runStmt()
+            match(RETURN) -> returnStmt()
             match(SCENARIO) -> scenarioStatement()
             match(PORTFOLIO) -> portfolioStmt()
             match(INDENT) -> {
@@ -52,6 +53,13 @@ class Parser(private val tokens: List<Token>) {
         val modelName = consume(IDENTIFIER, "Expect model name after ON.")
         return FinanceStmt.RunStmt(scenarioName, modelName)
     }
+
+    private fun returnStmt(): Stmt {
+        val value = if (!check(NEWLINE)) expression() else null
+        consume(NEWLINE, "Expect newline after RETURN.")
+        return Stmt.ReturnStmt(value)
+    }
+
 
     private fun letStmt(): Stmt {
         val name = consumeIdentifierLike("Expect variable name.")
