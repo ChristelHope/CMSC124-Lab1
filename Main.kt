@@ -1,74 +1,201 @@
+package finlite
+import finlite.Callable.*
 import java.lang.RuntimeException
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
-//global evaluator created
-val evaluator = Evaluator()   
+fun main() {
+    val globalEnvironment = Environment()
+    val interpreter = Interpreter(globalEnvironment)
+    
+    // Load standard library with interpreter
+    FinLiteStandardLib.loadInto(globalEnvironment, interpreter)
+    
+    // Define your valuation model (wrapped as RuntimeValue.Function)
+    globalEnvironment.define("valuation_model", RuntimeValue.Function(object : Callable {
+        override fun arity() = -1
+        override fun call(ctx: Any?, arguments: List<Any?>): Any? {
+            val rate = arguments.getOrNull(0)?.toString()?.toDouble() ?: 0.0
+            val growth = arguments.getOrNull(1)?.toString()?.toDouble() ?: 0.0
+            println("Model: rate=$rate, growth=$growth")
+            return rate * growth
+        }
+    }))
+    
+    // Check if input is piped or interactive
+    val isInteractive = System.console() != null
+    
+    if (isInteractive) {
+        println("=== Enter prompt here: ===")
+        println("Press Ctrl+C to leave")
+        println()
+        
+        while (true) {
+            val input = readMultilineInput() ?: break
+            if (input.trim().isEmpty()) continue
+            if (input.trim().lowercase() in listOf("exit", "quit")) break
 
-fun main() {                                                                              // REPL: lets the user interactively type code & see the tokens generated
-    println("Type in your prompt below and see the tokens generated.")    
-
-    while (true) {
-        print("> ")                                                                            // as indicator to insert prompt after this symbol
-        val line = readLine() ?: break 
-        if(line.trim().isEmpty()) continue
-                                                                                              // to read input (exit if null / Ctrl+D)
-        val scanner = Scanner(line)                                                           // to create scanner for that line
-        val tokens = scanner.scanTokens()                                                     // to scan tokens
-
-        val parser = Parser(tokens)                                                           // to create parser for those tokens
-        val statements = parser.parse()                                                       // to parse tokens into statements (AST)
-
-        if(statements.isNotEmpty()) {                                                                    // if parsing was successful
-              try {
-                //evaluate the expr
-                for (stmt in statements){
-                    if (stmt is Stmt.Expression) {
-                        val result = evaluator.evaluate(stmt.expression)
-                        println(valueToString(result))
-                    }
-                }
-
-            } catch (e: RuntimeError) {
-                //to handle runtime errors
-                reportRuntimeError(e)
-            }                                                
-        } else {
-            println("Parsing error occurred.")                                                // if there was a parsing error
+            executeCode(input, interpreter)
+            println()
+        }
+    } else {
+        // Piped input mode - read all at once
+        val reader = BufferedReader(InputStreamReader(System.`in`))
+        val input = reader.readText()
+        
+        if (input.trim().isNotEmpty()) {
+            executeCode(input, interpreter)
         }
     }
 }
 
-fun valueToString(value: Any?): String {
-    return when (value) {
-        null -> "nil"
-        is Double ->
-            if (value % 1.0 == 0.0)
-                value.toInt().toString()     // remove .0 for whole numbers
-            else
-                value.toString()             // keep decimals
-        else -> value.toString()
+fun executeCode(input: String, interpreter: Interpreter) {
+    val scanner = Scanner(input)
+    scanner.scanTokens()
+    val tokens = scanner.tokens
+
+    try {
+        val parser = Parser(tokens)
+        val statements = parser.parse()
+
+        for (statement in statements) {
+            interpreter.execute(statement)
+        }
+    } catch (e: RuntimeError) {
+        reportRuntimeError(e)
+    } catch (e: IllegalArgumentException) {
+        System.err.println("Error: ${e.message}")
+        e.printStackTrace(System.err)
+    } catch (e: ArithmeticException) {
+        System.err.println("Arithmetic Error: ${e.message}")
+        e.printStackTrace(System.err)
+    } catch (e: RuntimeException) {
+        System.err.println("Error: ${e.message}")
+        e.printStackTrace(System.err)
+    } catch (e: Exception) {
+        System.err.println("Error: ${e.message}")
+        e.printStackTrace(System.err)
     }
 }
 
 fun reportRuntimeError(error: RuntimeError) {
-    System.err.println("[line ${error.token.line}] Runtime error: ${error.message}")
+    val lineInfo = error.token?.line ?: "?"
+    System.err.println("[line $lineInfo] Runtime error: ${error.message}")
+    error.printStackTrace(System.err)
 }
 
+fun readMultilineInput(): String? {
+    print("> ")
+    val lines = mutableListOf<String>()
+    
+    while (true) {
+        val line = readLine() ?: return null
+        
+        // Check for exit commands
+        if (line.trim().lowercase() in listOf("exit", "quit")) {
+            return line
+        }
+        
+        // Empty line signals end of input
+        if (line.trim().isEmpty()) {
+            if (lines.isEmpty()) {
+                // First line is empty, prompt again
+                print("> ")
+                continue
+            } else {
+                // End of multiline input
+                break
+            }
+        }
+        
+        lines.add(line)
+        
+        // Show continuation prompt
+        print("  ")
+    }
+    
+    return lines.joinToString("\n") + "\n"
+}
 
-/*
- This file serves as the main entry point of the program. It integrates the
- Scanner and Parser modules to process a source code input, convert it into a stream of tokens, and then parse these tokens into an Abstract Syntax Tree (AST).
- The resulting AST is printed using the AstPrinter for verification.
- 
- Purpose:
- -to connect all major components (Scanner, Parser, AST Printer)
- -to execute the full lexical + syntactic analysis flow
- -to simulate a REPL-like environment for user testing and debugging
- 
-  Key components:
-  -main(): initializes the scanner and parser, handles user input, and prints results.
- 
-Ex:
- >kotlin MainKt
- Input:dehins omsim
- Output:(! true)
- */
+fun isInputComplete(input: String): Boolean {
+    var parenCount = 0
+    var bracketCount = 0
+    var braceCount = 0
+    var blockDepth = 0
+    var inString = false
+    var inMultilineString = false
+    var i = 0
+
+    fun isIdentifierChar(c: Char): Boolean =
+        c.isLetterOrDigit() || c == '_'
+
+    while (i < input.length) {
+        val c = input[i]
+
+        if (i + 2 < input.length && input.substring(i, i + 3) == "\"\"\"") {
+            inMultilineString = !inMultilineString
+            i += 3
+            continue
+        }
+        if (inMultilineString) {
+            i++
+            continue
+        }
+
+        if (c == '"') {
+            var escaped = false
+            var j = i - 1
+            while (j >= 0 && input[j] == '\\') {
+                escaped = !escaped
+                j--
+            }
+            if (!escaped) inString = !inString
+            i++
+            continue
+        }
+        if (inString) {
+            i++
+            continue
+        }
+
+        when (c) {
+            '(' -> parenCount++
+            ')' -> parenCount--
+            '[' -> bracketCount++
+            ']' -> bracketCount--
+            '{' -> braceCount++
+            '}' -> braceCount--
+        }
+
+        if (c.isLetter()) {
+            val start = i
+            var end = i + 1
+
+            while (end < input.length && isIdentifierChar(input[end])) {
+                end++
+            }
+
+            val keyword = input.substring(start, end)
+
+            when (keyword.lowercase()) {
+                "if", "while", "for", "scenario", "portfolio", "block" ->
+                    blockDepth++
+
+                "end" ->
+                    blockDepth--
+            }
+
+            i = end
+            continue
+        }
+
+        i++
+    }
+
+    return parenCount == 0 &&
+            bracketCount == 0 &&
+            braceCount == 0 &&
+            blockDepth == 0 &&
+            !inString &&
+            !inMultilineString
+}

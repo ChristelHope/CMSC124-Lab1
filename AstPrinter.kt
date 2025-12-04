@@ -1,80 +1,146 @@
-object AstPrinter {
-    fun print(stmt: Stmt): String {
-        return when (stmt) {
-            is Stmt.Expression -> printExpr(stmt.expression)
-            is Stmt.Function -> {
-                val params = stmt.params.joinToString(", ") { it.lexeme }
-                val body = stmt.body.statements.joinToString(" ") { print(it) }
-                "(function ${stmt.name.lexeme} ($params) { $body })"
-            }
-            is Stmt.Block -> {
-                val statements = stmt.statements.joinToString(" ") { print(it) }
-                "(block $statements)"
-            }
-            is Stmt.Print -> "(print ${printExpr(stmt.expression)})"
-            is Stmt.Var -> "(var ${stmt.name.lexeme} ${stmt.initializer?.let { printExpr(it) } ?: ""})"
-            is Stmt.If -> "(if ${printExpr(stmt.condition)} ${print(stmt.thenBranch)} ${stmt.elseBranch?.let { print(it) } ?: ""})"
-            is Stmt.While -> "(while ${printExpr(stmt.condition)} ${print(stmt.body)})"
-            is Stmt.For -> "(for ${stmt.initializer?.let { printExpr(it) } ?: ""}; ${stmt.condition?.let { printExpr(it) } ?: ""}; ${stmt.increment?.let { printExpr(it) } ?: ""} ${print(stmt.body)})"
-            is Stmt.ForEach -> "(foreach ${stmt.iterator.lexeme} in ${printExpr(stmt.iterable)} ${print(stmt.body)})"
-            is Stmt.Return -> "(return ${stmt.value?.let { printExpr(it) } ?: ""})"
-            is Stmt.Class -> "(class ${stmt.name.lexeme})"
-        }
-    }
+package finlite
+import finlite.TokenType.*
+import finlite.Stmt.*
+import finlite.Expr.*
 
-    fun printExpr(expr: Expr): String {
-        return when (expr) {
+
+object AstPrinter {
+    fun print(stmt: Stmt): String =
+        when (stmt) {
+            is Stmt.Let -> "(let ${stmt.name.lexeme} ${printExpr(stmt.initializer)})"
+            is Stmt.SetStmt -> "(set ${stmt.name.lexeme} ${printExpr(stmt.value)})"
+            is Stmt.ExpressionStmt -> printExpr(stmt.expression)
+            is Stmt.Print -> "(print ${printExpr(stmt.value)})"
+            is Stmt.While -> "(while ${printExpr(stmt.condition)} ${print(stmt.body)})"
+            is Stmt.For -> "(for ${stmt.variable.lexeme} in ${printExpr(stmt.iterable)} ${print(stmt.body)})"
+            is Stmt.Block -> {
+                val body = stmt.statements.joinToString(" ") { print(it) }
+                "(block $body)"
+            }
+            is Stmt.IfStmt -> {
+                val elseifParts = stmt.elseifBranches.joinToString(" ") { (cond, branch) ->
+                    "(elseif ${printExpr(cond)} ${print(branch)})"
+                }
+                val elsePart = stmt.elseBranch?.let { " ${print(it)}" } ?: ""
+                val elseifStr = if (elseifParts.isNotEmpty()) " $elseifParts" else ""
+                "(if ${printExpr(stmt.condition)} ${print(stmt.thenBranch)}$elseifStr$elsePart)"
+            }
+            is Stmt.ReturnStmt -> {
+                val value = stmt.value?.let { " ${printExpr(it)}" } ?: ""
+                "(return$value)"
+            }
+            is Stmt.ErrorStmt -> "(error)"
+            is Stmt.Scenario -> {
+                val body = stmt.statements.joinToString(" ") { print(it) }
+                "(scenario ${stmt.name.lexeme} $body)"
+            }
+            is FinanceStmt.LedgerEntryStmt -> printLedgerEntry(stmt)
+            is FinanceStmt.PortfolioStmt  -> printPortfolio(stmt)
+            is FinanceStmt.ScenarioStmt   -> printScenario(stmt)
+            is FinanceStmt.SimulateStmt   -> printSimulate(stmt)
+            is FinanceStmt.RunStmt -> printRun(stmt)
+        }
+        
+    fun printExpr(expr: Expr): String =
+        when (expr) {
             is Expr.Literal -> literalToString(expr.value)
             is Expr.Variable -> expr.name.lexeme
-            is Expr.Grouping -> "(group ${print(expr.expression)})"
+            is Expr.Grouping -> "(group ${printExpr(expr.expression)})"
             is Expr.Unary -> {
                 val symbol = when (expr.operator.type) {
                     TokenType.BANG -> "!"
                     TokenType.MINUS -> "-"
+                    TokenType.NOT -> "not"
                     else -> expr.operator.lexeme
                 }
-                "($symbol ${print(expr.right)})"
+                "($symbol ${printExpr(expr.right)})"
             }
-    //        is Expr.Grouping -> "(group ${printExpr(expr.expression)})"
-    //        is Expr.Unary -> "(${expr.operator.lexeme} ${printExpr(expr.right)})"
             is Expr.Binary -> "(${expr.operator.lexeme} ${printExpr(expr.left)} ${printExpr(expr.right)})"
             is Expr.Call -> {
                 val args = expr.arguments.joinToString(", ") { printExpr(it) }
                 "(call ${printExpr(expr.callee)} ($args))"
             }
-            is Expr.Assign -> "(${expr.name.lexeme} = ${print(expr.value)})"
-            is Expr.Get -> "(get ${print(expr.obj)} ${expr.name.lexeme})"
-            is Expr.This -> "this"
+            is Expr.ListLiteral -> {
+                val elems = expr.elements.joinToString(", ") { printExpr(it) }
+                "[$elems]"
+            }
+            is Expr.Subscript -> {
+                val end = expr.end?.let { ":${printExpr(it)}" } ?: ""
+                "(subscript ${printExpr(expr.container)} [${printExpr(expr.index)}$end])"
+            }
+            is Expr.Assign -> "(assign ${expr.name.lexeme} ${printExpr(expr.value)})"
+            is FinanceExpr -> printFinanceExpr(expr)
+            else -> "(unknown-expr ${expr::class.simpleName})"
         }
-    }
 
-    private fun literalToString(value: Any?): String {
-        return when (value) {
+    private fun printFinanceExpr(expr: FinanceExpr): String =
+        when (expr) {
+            is FinanceExpr.NPV -> "(NPV ${printExpr(expr.cashflows)} ${printExpr(expr.rate)})"
+            is FinanceExpr.IRR -> "(IRR ${printExpr(expr.cashflows)})"
+            is FinanceExpr.PV -> {
+                val pmt = expr.pmt?.let { " pmt=${printExpr(it)}" } ?: ""
+                val fv = expr.fv?.let { " fv=${printExpr(it)}" } ?: ""
+                "(PV rate=${printExpr(expr.rate)} nper=${printExpr(expr.nper)}$pmt$fv)"
+            }
+            is FinanceExpr.FV -> {
+                val pmt = expr.pmt?.let { " pmt=${printExpr(it)}" } ?: ""
+                val pv = expr.pv?.let { " pv=${printExpr(it)}" } ?: ""
+                "(FV rate=${printExpr(expr.rate)} nper=${printExpr(expr.nper)}$pmt$pv)"
+            }
+            is FinanceExpr.WACC -> "(WACC ew=${printExpr(expr.equityWeight)} dw=${printExpr(expr.debtWeight)} ce=${printExpr(expr.costOfEquity)} cd=${printExpr(expr.costOfDebt)} tax=${printExpr(expr.taxRate)})"
+            is FinanceExpr.CAPM -> "(CAPM beta=${printExpr(expr.beta)} rf=${printExpr(expr.riskFree)} prem=${printExpr(expr.premium)})"
+            is FinanceExpr.VAR -> "(VAR portfolio=${printExpr(expr.portfolio)} confidence=${printExpr(expr.confidence)})"
+            is FinanceExpr.SMA -> "(SMA series=${printExpr(expr.series)} period=${printExpr(expr.period)})"
+            is FinanceExpr.EMA -> "(EMA series=${printExpr(expr.series)} period=${printExpr(expr.period)})"
+            is FinanceExpr.Amortize -> "(Amortize principal=${printExpr(expr.principal)} rate=${printExpr(expr.rate)} periods=${printExpr(expr.periods)})"
+            is FinanceExpr.CashflowLiteral -> {
+                val entries = expr.entries.joinToString(" ") { 
+                    "${it.type.name.lowercase()}:${printExpr(it.amount)}"
+                }
+                "(cashflow $entries)"
+            }
+            is FinanceExpr.PortfolioLiteral -> "(portfolio assets=${printExpr(expr.assets)} weights=${printExpr(expr.weights)})"
+            is FinanceExpr.TableLiteral -> {
+                val cols = expr.values.entries.joinToString(", ") { (name, expr) ->
+                    "$name=${printExpr(expr)}"
+                }
+                "(table $cols)"
+            }
+            is FinanceExpr.ColumnAccess -> "${printExpr(expr.tableExpr)}.${expr.column.lexeme}"
+            //is FinanceExpr.TimeSeriesLiteral -> "(timeseries ${printExpr(expr.values)})"
+            else -> "(unknown-finance-expr ${expr::class.simpleName})"
+        }
+
+    private fun literalToString(value: Any?): String =
+        when (value) {
             null -> "nil"
             is Double -> value.toString()
             is Boolean -> if (value) "true" else "false"
             is String -> "\"$value\""
             else -> value.toString()
         }
+        
+    // ============
+    // HELPERS
+    // ============
+    private fun printLedgerEntry(entry: FinanceStmt.LedgerEntryStmt): String =
+        "(ledger ${entry.type.name.lowercase()} ${entry.account.lexeme} ${printExpr(entry.amount)})"
+
+    private fun printPortfolio(stmt: FinanceStmt.PortfolioStmt): String {
+        val entries = stmt.entries.joinToString(" ") { printLedgerEntry(it) }
+        return "(portfolio ${stmt.name.lexeme} $entries)"
+    }
+
+    private fun printScenario(stmt: FinanceStmt.ScenarioStmt): String =
+        "(scenario ${stmt.name.lexeme} ${print(stmt.body)})"
+
+    private fun printSimulate(stmt: FinanceStmt.SimulateStmt): String {
+        val runs = stmt.runs?.let { " runs=${printExpr(it)}" } ?: ""
+        val step = stmt.step?.let { " step=${printExpr(it)}" } ?: ""
+        return "(simulate ${stmt.scenarioName.lexeme}$runs$step)"
+    }
+    
+    private fun printRun(stmt: FinanceStmt.RunStmt): String {
+        return "(run ${stmt.scenarioName.lexeme} on ${stmt.modelName.lexeme})"
     }
 }
-  
-
-/*
-this file implements the AstPrinter class, which traverses the Abst Syntax Tree & converts it into a readable, parenthesized string representation
- 
- Purpose:
-- to visualize the internal structure of the parsed syntax tree
-- to assist with debugging and verifying parser output
- 
- Ex:
->1 + 2 * 3
- (+ 1 (* 2 3))
-
-key function:
- -print(expr: Expr): Returns a string representation of the expression tree
- 
- importance:
-  AstPrinter provides valuable insight into how the parser understands the input,
- ensuring correctness and aiding in debugging or later interpretation stages
- */

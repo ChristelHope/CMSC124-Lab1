@@ -1,43 +1,103 @@
+package finlite
+
+// Token data class
+data class Token(
+    val type: TokenType,
+    val lexeme: String,
+    val literal: Any?,
+    val line: Int,
+)
+
+// Keywords map
+val keywords: Map<String, TokenType> = mapOf(
+    // Core keywords
+    "let" to TokenType.LET,
+    "set" to TokenType.SET,
+
+    "if" to TokenType.IF,
+    "then" to TokenType.THEN,
+    "while" to TokenType.WHILE,
+    "for" to TokenType.FOR,
+    "in" to TokenType.IN,
+    "else" to TokenType.ELSE,
+    "elseif" to TokenType.ELSEIF,
+    "end" to TokenType.END,
+
+    "print" to TokenType.PRINT,
+    "log" to TokenType.LOG,
+    "return" to TokenType.RETURN,
+
+    // Literals 
+    "true" to TokenType.TRUE,
+    "false" to TokenType.FALSE,
+    "null" to TokenType.NULL,
+
+    // Finance structures
+    "table" to TokenType.TABLE,
+    "cashflow" to TokenType.CASHFLOW,
+    "timeseries" to TokenType.TIMESERIES,
+
+    "scenario" to TokenType.SCENARIO,
+    "run" to TokenType.RUN,
+    "on" to TokenType.ON,
+    "simulate" to TokenType.SIMULATE,
+
+    "portfolio" to TokenType.PORTFOLIO,
+    "entry" to TokenType.ENTRY,
+    "debit" to TokenType.DEBIT,
+    "credit" to TokenType.CREDIT,
+    "ledger" to TokenType.LEDGER,
+
+    "from" to TokenType.FROM,
+    "to" to TokenType.TO,
+    "step" to TokenType.STEP,
+
+    // Financial functions
+    "npv" to TokenType.NPV,
+    "irr" to TokenType.IRR,
+    "pv" to TokenType.PV,
+    "fv" to TokenType.FV,
+    "wacc" to TokenType.WACC,
+    "capm" to TokenType.CAPM,
+    "var" to TokenType.VAR,
+
+    "sma" to TokenType.SMA,
+    "ema" to TokenType.EMA,
+    "amortize" to TokenType.AMORTIZE,
+
+    // Logical words
+    "and" to TokenType.AND,
+    "or" to TokenType.OR,
+    "not" to TokenType.NOT
+)
+
+// Token type enum
 enum class TokenType {
-    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,               //single-chara tokens
-    LEFT_BRACKET, RIGHT_BRACKET,
-    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR, COLON,
 
-    BANG, BANG_EQUAL,                                             //1 or 2 chara tokens
-    EQUAL, EQUAL_EQUAL,
-    GREATER, GREATER_EQUAL,
-    LESS, LESS_EQUAL, 
+    // Single-character tokens
+    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_BRACE, RIGHT_BRACE, COMMA, DOT, COLON, SLASH,
 
-    IDENTIFIER, STRING, NUMBER,                                  //literals
+    PLUS, MINUS, STAR, PERCENT, CARET,
 
-    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NULL, OR,            //keywords english base
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, EOF,
+    // One or two character tokens
+    EQUAL, EQUAL_EQUAL, BANG, BANG_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, AND_AND, OR_OR,
 
-    MAY, PAK, SOLID, EKSENA, PUMAPAPEL, BALIK, KUNG, HALA,      //Filipino keywords
-    AWRA, FORDA, BET, AMACCANA, GAME, OMSIM, CHAROT, OLATS,
-    DEHINS, AMP, BAKA, PEG, NAOL, SIMULA, KERATIN,
-    CHIKA, DANGEROUS, ERMATS, ERPATS,
-    AKO, SELFIE,
+    // Literals
+    IDENTIFIER, NUMBER, STRING,MULTILINE_STRING,MONEY,DATE,TRUE, FALSE,NULL,
 
-    EXTENDS, SET, CONST, CALL, FOREACH, BREAK, CONTINUE, NOT,          //other reserved keywords or mappings
-    IN, NEWLINE, INDENT, DEDENT, ERROR,
-    CONSTRUCTOR, IMPORT, EXPORT
-}
+    // Keywords
+    LET, SET,IF, THEN, WHILE, FOR, ELSE, ELSEIF, END,PRINT, LOG, RETURN,
 
-/*
- file contains the TokenType enumeration -->which lists all possiblecategories of tokens recognized by the language (operators,literals,keywords,punctuation,etc.)
- 
- Purpose:
-  -to classify each token produced by the Scanner
-  -to provide a consistent reference of all valid token types across modules
- 
- Ex TokenType entries:
- -Arithmetic: PLUS, MINUS, STAR, SLASH
- -Comparison: LESS, GREATER, EQUAL_EQUAL
- -Logical: AND, OR, BANG    (mapped from dehins)
- -Literals: IDENTIFIER, STRING, NUMBER
- -Keywords: IF, ELSE, TRUE, FALSE, etc.
- 
- importance:
-  parser & scanner rely on this enumeration to maintain consistency in recognizing & interpreting diff language constructs
- */
+    TABLE, CASHFLOW, TIMESERIES,COMPARE,SCENARIO, RUN, ON, SIMULATE,PORTFOLIO, ENTRY, DEBIT, CREDIT, LEDGER,
+
+    FROM, TO, STEP, IN,
+
+    // Finance built-ins
+    NPV, IRR, PV, FV, WACC, CAPM, VAR,SMA, EMA, AMORTIZE,
+
+    // Logical words
+    AND, OR, NOT,
+
+    // Misc
+    NEWLINE, INDENT, DEDENT, EOF, ERROR
+} 

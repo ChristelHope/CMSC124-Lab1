@@ -1,232 +1,149 @@
-class Scanner(private val source: String) {                                                      // scanner takes raw source code & breaks it into tokens
-    private var start = 0                                                                           // index where the current token begins
-    private var current = 0                                                                         // index of the character we are currently scanning
-    private var line = 1                                                                            // line counter (helps w error reporting)
-    private val tokens = mutableListOf<Token>()                                                     // dynamic list of tokens found
-    
-                                                                                                    // Indentation tracking
-    private val indentStack = mutableListOf<Int>()                                                  // stack to track indentation levels
-    private var atStartOfLine = true                                                                // whether we're at the start of a new line
+package finlite
 
-    fun scanTokens(): List<Token> {                                                                 // scan the entire source into tokens
-        while (!isAtEnd()) {                                                                       // loop until all characters are consumed
-            start = current                                                                        // mark beginning of the next token
-                                                                                                    // Handle indentation at start of line
-            if (atStartOfLine) {
-                handleIndentation()
-            }
-            scanToken()                                                                            // recognize the next token
+class Scanner(
+    private val source: String,
+    private val errorReporter: ErrorReporter = ErrorReporter()
+    ) {
+    val tokens = mutableListOf<Token>()
+    private var start = 0                // start index of current lexeme
+    private var current = 0              // index currently being read
+    private var line = 1                 // line counter (for error reporting)
+
+
+    private val indentStack = ArrayDeque<Int>()  // Track indentation levels
+    private var indentLevel = 0
+    private var atStartOfLine = true     // Track if we're at start of a line
+    private var parenDepth = 0           // Track parentheses nesting
+    private var bracketDepth = 0         // Track bracket nesting
+    private var braceDepth = 0           // Track brace nesting
+
+    fun scanTokens(): List<Token> {
+        indentStack.addLast(0)
+
+        while (!isAtEnd()) {
+            start = current
+            scanToken()
         }
-                                                                                                    // Add any remaining DEDENT tokens
-        while (indentStack.isNotEmpty()) {
-            indentStack.removeAt(indentStack.size - 1)
-            tokens.add(Token(TokenType.DEDENT, "", null, line))
-        }
-        
-        tokens.add(Token(TokenType.EOF, "", null, line))                                           // add special EOF token at the end
+
+        // Ensure all brackets/parens/braces were closed
+        if (parenDepth > 0) error("Unclosed parenthesis")
+        if (bracketDepth > 0) error("Unclosed bracket")
+        if (braceDepth > 0) error("Unclosed brace")
+
+        addToken(TokenType.EOF)
+
         return tokens
     }
 
-    private fun isAtEnd(): Boolean {                                                                 // to check if we've read all characters
-        return current >= source.length
-    }
-
-    private fun advance(): Char {                                                                     // to consume one character and move forward
-        return source[current++]
-    }
-
-    private fun addToken(type: TokenType) {                                                          // add token w/o literal value
-        addToken(type, null)
-    }
-
-    private fun addToken(type: TokenType, literal: Any?) {                                          // add token w optional literal value
-        val text = source.substring(start, current)                                                 // extract substring for the lexeme
-        tokens.add(Token(type, text, literal, line))                                               // push into token list
-    }
-    
-    private fun handleIndentation() {
-        var indentLevel = 0
-        while (peek() == ' ' || peek() == '\t') {
-            if (peek() == ' ') {
-                indentLevel++
-            } else if (peek() == '\t') {
-                indentLevel += 4 // Treat tab as 4 spaces
-            }
-            advance()
-        }
+    private fun scanToken() {
         
-        // Skip if line is empty (only whitespace)
-        if (peek() == '\n' || isAtEnd()) {
+        if (atStartOfLine) {
+            handleIndentation()
             atStartOfLine = false
-            return
         }
-        
-        val currentIndent = if (indentStack.isEmpty()) 0 else indentStack.last()
-        
-        if (indentLevel > currentIndent) {
-                                                                                                        // Indent
-            indentStack.add(indentLevel)
-            tokens.add(Token(TokenType.INDENT, "", indentLevel, line))
-        } else if (indentLevel < currentIndent) {
-                                                                                                        // Dedent
-            while (indentStack.isNotEmpty() && indentStack.last() > indentLevel) {
-                indentStack.removeAt(indentStack.size - 1)
-                tokens.add(Token(TokenType.DEDENT, "", null, line))
-            }
-            if (indentStack.isEmpty() || indentStack.last() != indentLevel) {
-                println("Error: inconsistent indentation at line $line")
-            }
-        }
-        
-        atStartOfLine = false
-    }
-
-    private fun scanToken() {                                                                       // determine what token the curr chara belongs to
-        val c = advance()                                                                           // to get the next character using advance
-
+        val c = advance()
         when (c) {
-            '(' -> { atStartOfLine = false; addToken(TokenType.LEFT_PAREN) }
-            ')' -> { atStartOfLine = false; addToken(TokenType.RIGHT_PAREN) }
-            '{' -> { atStartOfLine = false; addToken(TokenType.LEFT_BRACE) }
-            '}' -> { atStartOfLine = false; addToken(TokenType.RIGHT_BRACE) }
-            '[' -> { atStartOfLine = false; addToken(TokenType.LEFT_BRACKET) }
-            ']' -> { atStartOfLine = false; addToken(TokenType.RIGHT_BRACKET) }
-            ',' -> { atStartOfLine = false; addToken(TokenType.COMMA) }
-            '.' -> { atStartOfLine = false; addToken(TokenType.DOT) }
-            '-' -> { atStartOfLine = false; addToken(TokenType.MINUS) }
-            '+' -> { atStartOfLine = false; addToken(TokenType.PLUS) }
-            ';' -> { atStartOfLine = false; addToken(TokenType.SEMICOLON) }
-            '*' -> { atStartOfLine = false; addToken(TokenType.STAR) }
-            '=' -> {
-                atStartOfLine = false
-                if (match('=')) {
-                    addToken(TokenType.EQUAL_EQUAL)
+
+            // Delimiters
+            '(' -> {
+                parenDepth++
+                addToken(TokenType.LEFT_PAREN)}
+            ')' -> {
+                parenDepth-- 
+                reportIfNegativeDepth("Parenthesis", parenDepth)
+                addToken(TokenType.RIGHT_PAREN)}
+            '[' -> {
+                bracketDepth++
+                addToken(TokenType.LEFT_BRACKET)}
+            ']' -> {
+                bracketDepth--
+                reportIfNegativeDepth("Bracket", bracketDepth)
+                addToken(TokenType.RIGHT_BRACKET)}
+            '{' -> {
+                braceDepth++
+                addToken(TokenType.LEFT_BRACE)}
+            '}' -> {
+                braceDepth--
+                reportIfNegativeDepth("Brace", braceDepth)
+                addToken(TokenType.RIGHT_BRACE)}
+            ',' -> addToken(TokenType.COMMA)
+            ':' -> addToken(TokenType.COLON)
+            '.' -> addToken(TokenType.DOT)
+            // Arithmetic
+            '+' -> addToken(TokenType.PLUS)
+            '-' -> addToken(TokenType.MINUS)
+            '*' -> addToken(TokenType.STAR)
+            '%' -> addToken(TokenType.PERCENT)
+            '^' -> addToken(TokenType.CARET)
+
+            '#' -> {
+                if (match('#') && match('#')) {
+                    // matched ###
+                    handleBlockComment()
                 } else {
-                    addToken(TokenType.EQUAL)
+                    // single-line comment #
+                    while (peek() != '\n' && !isAtEnd()) advance()
                 }
             }
-            '!' -> {
-                atStartOfLine = false
-                if (match('=')) {
-                    addToken(TokenType.BANG_EQUAL)
-                } else {
-                    addToken(TokenType.BANG)
-                }
+
+            // Comparison
+            '=' -> addToken(if (match('=')) TokenType.EQUAL_EQUAL else TokenType.EQUAL)
+            '!' -> addToken(if (match('=')) TokenType.BANG_EQUAL else TokenType.BANG)
+            '<' -> addToken(if (match('=')) TokenType.LESS_EQUAL else TokenType.LESS)
+            '>' -> addToken(if (match('=')) TokenType.GREATER_EQUAL else TokenType.GREATER)
+
+            // Logical operators
+            '&' -> {
+                if (match('&')) addToken(TokenType.AND_AND)
+                else addToken(TokenType.ERROR, "&")
             }
-            '<' -> {
-                atStartOfLine = false
-                if (match('=')) {
-                    addToken(TokenType.LESS_EQUAL)
-                } else {
-                    addToken(TokenType.LESS)
-                }
+            '|' -> {
+                if (match('|')) addToken(TokenType.OR_OR)
+                else addToken(TokenType.ERROR, "|")
             }
-            '>' -> {
-                atStartOfLine = false
-                if (match('=')) {
-                    addToken(TokenType.GREATER_EQUAL)
-                } else {
-                    addToken(TokenType.GREATER)
-                }
+
+            // Strings
+            '"' -> {
+                if (match('"') && match('"')) multilineString()
+                else string()
             }
-            ':' -> { atStartOfLine = false; addToken(TokenType.COLON) }
-            '"' -> { atStartOfLine = false; string() }
-            '/' -> {
-                atStartOfLine = false
-                if (match ('/')) { 
-                    while (peek() != '\n' && !isAtEnd()) {
-                        advance()
-                    }                                          
-                } else if (match('-')) {
-                    while (true) {
-                        if (isAtEnd()){
-                            println("Error with $c at line $line")
-                            return
-                        }
-                        if (peek() == '-' && peekNext() == '/') {
-                            advance() //consume '-'
-                            advance() //consume '/'
-                            break     //skip comment
-                        }
-                        if (peek() == '\n') line++
-                        advance()
-                    }
-                } else {
-                    addToken(TokenType.SLASH)
-                } 
-            }
-            
-            ' ', '\r', '\t' -> {
-                if (atStartOfLine) {
-                    // Count indentation at start of line
-                    handleIndentation()
-                }
-            }
+
+            // Whitespace
+            ' ', '\r', '\t' -> {/*ignored*/}
+        
+            // Newline
             '\n' -> {
                 line++
+                addToken(TokenType.NEWLINE)
                 atStartOfLine = true
-                tokens.add(Token(TokenType.NEWLINE, "", null, line - 1))
+                start = current
+                return
             }
 
-            else -> {                                                                               // if unrecognized character, we report it
-                atStartOfLine = false                                                               // no longer at start of line
-                if (c.isDigit()) {
-                    number()
-                } else if (c.isLetter() || c == '_' || c == '$') {
-                    identifier()
-                } else {
-                    println("Error with $c at line $line")
+            // Literals & identifiers
+            else -> when {
+                c.isDigit() -> numberOrMoneyOrDate()
+                c.isLetter() || c == '_' -> identifierOrKeywordOrMoney()
+                else -> {
+                    error("Unexpected character '$c' (Unicode: U+${c.code.toString(16).uppercase()})")
+                    addToken(TokenType.ERROR, "unexpected:$c")
                 }
             }
         }
     }
-    private fun identifier() {
-        atStartOfLine = false
-        while (peek().isLetterOrDigit() || peek() == '_') 
-            advance()
-        val text = source.substring(start, current)
-        when (text) {
-            "true" -> addToken(TokenType.TRUE, true)
-            "false" -> addToken(TokenType.FALSE, false)
-            "null" -> addToken(TokenType.NULL, null)
-            "nil" -> addToken(TokenType.NULL, null)
-            else -> {
-                val type = keywords[text] ?: TokenType.IDENTIFIER
-                 addToken(type, text)
-            }
-        }
-    }
-    private fun number() {
-        atStartOfLine = false
-        while (peek().isDigit()) advance()
-        if (peek() == '.' && peekNext().isDigit()) {                                               // Handling float
-            advance()                                                                               // Consume the '.'
-            while (peek().isDigit()) advance()
-        }
-        addToken(TokenType.NUMBER, source.substring(start, current).toDouble())
-    }
 
-    private fun peek(): Char {
-        if (isAtEnd()) return '\u0000'
-        return source[current]
-    }
+    
 
-    private fun string() {
-        atStartOfLine = false
-        while (peek() != '"' && !isAtEnd()){
-            if (peek() == '\n') line++
-            advance()
-        }
-        if (isAtEnd()) {
-            println("Error string at line $line")
-            return
-        }
-        advance()
+    // Basic helpers
+    private fun isAtEnd(): Boolean = current >= source.length
 
-        val value = source.substring(start + 1, current - 1)
-        val lexeme = source.substring(start, current)
-        tokens.add(Token(TokenType.STRING, lexeme, value, line))
-    }
+    private fun advance(): Char = source[current++]
+
+    private fun peek(): Char =
+        if (isAtEnd()) '\u0000' else source[current]
+
+    private fun peekNext(): Char =
+        if (current + 1 >= source.length) '\u0000' else source[current + 1]
 
     private fun match(expected: Char): Boolean {
         if (isAtEnd()) return false
@@ -235,28 +152,231 @@ class Scanner(private val source: String) {                                     
         return true
     }
 
-    private fun peekNext(): Char {
-        if (current + 1 >= source.length) return '\u0000'
-        return source[current + 1]
+    private fun addToken(type: TokenType, literal: Any? = null) {
+        val text = source.substring(start, current)
+        tokens.add(Token(type, text, literal, line))
     }
-}
 
-/*
-this file implements the lexical analysis phase of the language processor.
-it takes raw source code as input and breaks it into a sequence of tokens that represent the smallest meaningful units (keywords, literals, operators, symbols)
- 
- Purpose:
-  -to identify valid lexemes and classify them into token types
-  -to ignore whitespace and comments
-  -to provide clear error messages for invalid or unexpected characters
- 
-  Key functions:
-  -scanTokens(): returns a list of tokens from the source input
-  -scanToken(): handles the recognition of each individual token
-  -string(), number(), identifier(): handle scanning of literals and keywords
- 
- implementation notes:
-  -uses manual character scanning instead of regex (per lab guidelines)
-  -supports both single- and multi-character operators (e.g., ==, <=, !=)
-  -recognizes localized keywords such as "dehins" (for logical NOT)
- */
+    private fun handleIndentation() {
+        // Don't track indentation if we're inside parentheses, brackets, or braces
+        if (parenDepth > 0 || bracketDepth > 0 || braceDepth > 0) return
+        
+        var spaces = 0
+        var i = current
+
+        while (i < source.length) {
+            when (source[i]) {
+                ' '  -> { spaces++; i++ }
+                '\t' -> { spaces += 4; i++ }
+                else -> break
+            }
+        }
+
+        current = i
+        start = current
+
+        while (spaces < indentStack.last()) {
+            indentStack.removeLastOrNull() ?: run {
+                error("Indentation error: unexpected dedent")
+                return
+            }
+            addToken(TokenType.DEDENT)
+        }
+        
+        if (peek() == '\n' || isAtEnd()) return
+        }
+
+    // Block comment scanning
+    private fun handleBlockComment() {
+        while (!isAtEnd()) {
+            if (peek() == '\n') line++
+
+            if (peek() == '#' && 
+                peekNext() == '#' && 
+                source.getOrNull(current+2)=='#') {
+                advance(); advance(); advance() //to consume ###
+                return
+            }
+            advance()
+        }
+        error("Unterminated block comment: expected closing '###'")
+        addToken(TokenType.ERROR, "unterminated-block-comment")
+    }
+
+    // NUMBERS, MONEY, DATES
+    private fun numberOrMoneyOrDate() {
+        while (peek().isDigit() || peek() == '_') advance()
+        // Handle commas only when followed by digits (for thousand separators)
+        while (peek() == ',' && peekNext().isDigit()) {
+            advance() // consume comma
+            while (peek().isDigit() || peek() == '_') advance()
+        }
+
+        // Decimal fraction
+        if (peek() == '.' && peekNext().isDigit()) {
+            advance()
+            while (peek().isDigit() || peek() == '_') advance()
+            // Handle commas in decimal part only when followed by digits
+            while (peek() == ',' && peekNext().isDigit()) {
+                advance() // consume comma
+                while (peek().isDigit() || peek() == '_') advance()
+            }
+        }
+
+        val raw = source.substring(start, current)
+        val normalized = raw.replace(",", "").replace("_", "")
+
+        // DATE literal check: YYYY-MM-DD
+        if (isDateLiteral()) {
+            val dateText = source.substring(start, start + 10)
+            current = start + 10
+            addToken(TokenType.DATE, dateText)
+            return
+        }
+
+        val numericValue = normalized.toDoubleOrNull()
+            ?: run {
+                error("Invalid numeric literal: '$raw'")
+                addToken(TokenType.ERROR, raw)
+                return
+            }
+
+        // currency suffix (e.g., "1000 USD")
+        skipWhitespace()
+        val suffix = tryParseCurrencySuffix()
+        if (suffix != null) {
+            val currency = Currency.fromString(suffix)!!
+            addToken(TokenType.MONEY, FinLiteMoneyLiteral(currency, numericValue))
+            return
+        }
+
+        // Plain number
+        addToken(TokenType.NUMBER, numericValue)
+    }
+
+    private fun tryParseCurrencySuffix(): String? {
+        if (!peek().isLetter()) return null
+
+        val isoStart = current
+        while (peek().isLetter()) advance()
+
+        val iso = source.substring(isoStart, current).uppercase()
+
+        return if (isIsoCurrency(iso)) iso else null
+    }
+
+    private fun isIsoCurrency(s: String): Boolean =
+        Currency.fromString(s) != null
+
+
+    private fun isDateLiteral(): Boolean {
+        if (start + 9 >= source.length) return false
+        val segment = source.substring(start, start + 10)
+        return Regex("""\d{4}-\d{2}-\d{2}""").matches(segment)
+    }
+
+    // IDENTIFIERS, KEYWORDS, ISO MONEY PREFIXES
+    private fun identifierOrKeywordOrMoney() {
+        while (isIdentifier(peek())) advance()
+        val text = source.substring(start, current)
+        val lower = text.lowercase()
+        // keyword match
+        val keyword = keywords[lower]
+        if (keyword != null) {
+            addToken(keyword)
+            return
+        }
+
+        // MONEY prefix - "USD 1000"
+        val checkCurrency = Currency.fromString(text)
+        if (checkCurrency != null) {
+            skipWhitespace()
+            val valueStart = current
+            if (peek().isDigit()) {
+                numberOrMoneyOrDate()
+                val valueText = source.substring(valueStart, current)
+                val numeric = valueText.replace(",", "").replace("_", "").toDoubleOrNull()
+                if (numeric == null) {
+                    error("Invalid money literal: '$valueText'")
+                    addToken(TokenType.ERROR, valueText)
+                    return
+                }
+                addToken(TokenType.MONEY, FinLiteMoneyLiteral(checkCurrency, numeric))
+                return
+            }
+        }
+        // Regular identifier
+        addToken(TokenType.IDENTIFIER, text)
+    }
+
+    // STRINGS
+    private fun string() {
+        while (peek() != '"' && !isAtEnd()) {
+            if (peek() == '\n') line++
+            advance()
+        }
+    // report missing quote in string
+        if (isAtEnd()) {
+            error("Unterminated string at line $line: expected closing '\"'")
+            addToken(TokenType.ERROR, "Unterminated string")
+            return
+        }
+
+        advance()
+
+        val value = source.substring(start + 1, current - 1)
+        addToken(TokenType.STRING, value)
+    }
+
+
+    private fun multilineString() {
+        // We have already consumed """.
+        while (!isAtEnd()) {
+            if (peek() == '\n') line++
+
+            if (peek() == '"' && peekNext() == '"'
+                && source.getOrNull(current + 2) == '"'
+            ) {
+                advance(); advance(); advance() // consume """
+                val value = source.substring(start + 3, current - 3)
+                addToken(TokenType.MULTILINE_STRING, value)
+                return
+            }
+            advance()
+        }
+        error("Unterminated multiline string at line $line: expected closing \"\"\"")
+        addToken(TokenType.ERROR, "Unterminated multiline string")
+
+        while (!isAtEnd() && peek() != '\n') advance()
+    }
+
+    // Utility: skip whitespace (not newline)
+    private fun skipWhitespace() {
+        while (peek() == ' ' || peek() == '\t' || peek() == '\r') advance()
+    }
+
+    data class FinLiteMoneyLiteral(
+        val currency: String,
+        val amount: Double
+    )
+
+    private fun reportIfNegativeDepth(type: String, depth: Int) {
+        if (depth < 0) {
+            error("$type closed but never opened")
+        }
+    }
+
+    private fun isIdentifier(c: Char): Boolean {
+        return c.isLetterOrDigit() ||
+            c == '_' ||
+            c.category == CharCategory.NON_SPACING_MARK
+    }
+
+    private fun error(message: String) {
+        val column = current - start
+        errorReporter.report(line,column, message)
+    }
+    // Safe character access
+    private fun CharSequence.getOrNull(i: Int): Char? =
+        if (i in 0 until this.length) this[i] else null
+}

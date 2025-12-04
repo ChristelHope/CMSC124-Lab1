@@ -1,168 +1,244 @@
-// Parser.kt
-// Converts a list of tokens into an Abstract Syntax Tree (AST)
-// Implements a recursive descent parser for the Teleris language
+package finlite
+import finlite.Callable.*
+import finlite.TokenType.*
 
-class ParseError(message: String) : RuntimeException(message)
+// Error reporting classes
+class ErrorReporter {
+    private val errors = mutableListOf<ScanError>()
+
+    fun report(line: Int, column: Int, message: String) {
+        errors.add(ScanError(line, column, message))
+        System.err.println("[line $line, col $column] Error: $message")
+    }
+
+    fun hasErrors() = errors.isNotEmpty()
+
+    fun getErrors(): List<ScanError> = errors
+}
+
+data class ScanError(val line: Int, val column: Int, val message: String)
 
 class Parser(private val tokens: List<Token>) {
+
     private var current = 0
+    private val financeParser = FinanceParser(this)
 
     fun parse(): List<Stmt> {
         val statements = mutableListOf<Stmt>()
         while (!isAtEnd()) {
-            statements.add(declaration())
+            skipNewlines()
+            if (isAtEnd()) break
+            statements.add(statement())
         }
         return statements
     }
 
-    // ===============================
-    // DECLARATIONS & STATEMENTS
-    // ===============================
-
-    private fun declaration(): Stmt {
-        try {
-            if (match(TokenType.CLASS)) return classDeclaration()
-            if (match(TokenType.FUN, TokenType.EKSENA)) return functionDeclaration("function")
-            if (match(TokenType.VAR, TokenType.MAY)) return varDeclaration()
-            return statement()
-        } catch (err: ParseError) {
-            synchronize()
-            // Return an empty expression to allow continued parsing after an error
-            return Stmt.Expression(Expr.Literal(null))
-        }
-    }
-
-    private fun varDeclaration(): Stmt {
-        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
-        var initializer: Expr? = null
-        if (match(TokenType.EQUAL, TokenType.PAK)) {
-            initializer = expression()
-        }
-        consumeOptionalSemicolon()
-        return Stmt.Var(name, initializer)
-    }
+    // ============================
+    // STATEMENTS
+    // ============================
 
     private fun statement(): Stmt {
-        if (match(TokenType.IF, TokenType.KUNG)) return ifStatement()
-        if (match(TokenType.FOR, TokenType.AWRA)) return forStatement()
-        if (match(TokenType.WHILE, TokenType.FORDA)) return whileStatement()
-        if (match(TokenType.RETURN, TokenType.BALIK)) return returnStatement()
-        if (match(TokenType.LEFT_BRACE)) return blockStatement()
-        if (match(TokenType.PRINT, TokenType.CHIKA)) {
-            val value = expression()
-            consumeOptionalSemicolon()
-            return Stmt.Print(value)
-        }
-        if (match(TokenType.PAK)) {
-            // Handle "pak x = value" as assignment statement
-            val name = consume(TokenType.IDENTIFIER, "Expect variable name after 'pak'.")
-            consume(TokenType.EQUAL, "Expect '=' after variable name.")
-            val value = expression()
-            consumeOptionalSemicolon()
-            return Stmt.Expression(Expr.Assign(name, value))
-        }
+        skipNewlines()
 
-        // Default case: Expression statement
+        return try {
+            when {
+                match(LET) -> letStmt()
+                match(SET) -> setStmt()
+                match(PRINT, LOG) -> printStmt()
+                match(IF) -> ifStmt()
+                match(WHILE) -> whileStmt()
+                match(FOR) -> forStmt()
+                check(RUN) -> {
+                    val financeStmt = financeParser.parseFinanceStatement()
+                    financeStmt ?: exprStmt()
+                }
+                match(RETURN) -> returnStmt()
+                check(SCENARIO) -> scenarioStatement()
+                check(PORTFOLIO) -> {
+                    val financeStmt = financeParser.parseFinanceStatement()
+                    financeStmt ?: exprStmt()
+                }
+                match(INDENT) -> {
+                    // Anonymous block (INDENT already consumed)
+                    parseIndentedBlock("message")
+                }
+                else -> exprStmt()
+            }
+        } catch (e: RuntimeException) {
+            synchronize()
+            Stmt.ErrorStmt
+        }
+    }
+
+    private fun letStmt(): Stmt {
+        val name = consumeIdentifierLike("Expect variable name.")
+        consume(EQUAL, "Expect '=' after variable name.")
+        val initializer = expression()
+        consume(NEWLINE, "Expect newline after LET statement.")
+        return Stmt.Let(name, initializer)
+    }
+
+    private fun setStmt(): Stmt {
+        val name = consumeIdentifierLike("Expect variable name.")
+        consume(EQUAL, "Expect '=' after variable name.")
+        val value = expression()
+        consume(NEWLINE, "Expect newline after SET statement.")
+        return Stmt.SetStmt(name, value)
+    }
+
+    private fun printStmt(): Stmt {
         val expr = expression()
-        consumeOptionalSemicolon()
-        return Stmt.Expression(expr)
+        consume(NEWLINE, "Expect newline after PRINT.")
+        return Stmt.Print(expr)
     }
 
-    private fun ifStatement(): Stmt {
-        if (match(TokenType.LEFT_PAREN)) {
-            val condition = expression()
-            consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
-            val thenBranch = statement()
-            var elseBranch: Stmt? = null
-            if (match(TokenType.ELSE, TokenType.HALA)) {
-                elseBranch = statement()
-            }
-            return Stmt.If(condition, thenBranch, elseBranch)
-        } else {
-            val condition = expression()
-            val thenBranch = statement()
-            var elseBranch: Stmt? = null
-            if (match(TokenType.ELSE, TokenType.HALA)) {
-                elseBranch = statement()
-            }
-            return Stmt.If(condition, thenBranch, elseBranch)
-        }
+    private fun exprStmt(): Stmt {
+        val expr = expression()
+        consume(NEWLINE, "Expect newline after expression.")
+        return Stmt.ExpressionStmt(expr)
     }
 
-    private fun forStatement(): Stmt {
-        // Support both C-style for loops and for-each
-        if (match(TokenType.LEFT_PAREN)) {
-            val initializer = if (!match(TokenType.SEMICOLON)) {
-                val init = expression()
-                consume(TokenType.SEMICOLON, "Expect ';' after loop initializer.")
-                init
-            } else null
-
-            val condition = if (!check(TokenType.SEMICOLON)) expression() else Expr.Literal(true)
-            consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
-            val increment = if (!check(TokenType.RIGHT_PAREN)) expression() else null
-            consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
-            val body = statement()
-            return Stmt.For(initializer, condition, increment, body)
-        } else {
-            val iteratorName = consume(TokenType.IDENTIFIER, "Expect iterator name after 'awra'.")
-            consume(TokenType.IN, "Expect 'in' after iterator variable.")
-            val iterable = expression()
-            val body = statement()
-            return Stmt.ForEach(iteratorName, iterable, body)
-        }
+    private fun returnStmt(): Stmt{
+        val value = if (!check(NEWLINE)) expression() else null
+        consume(NEWLINE, "Expect newline after RETURN.")
+        return Stmt.ReturnStmt(value)
     }
 
-    private fun whileStatement(): Stmt {
-        if (match(TokenType.LEFT_PAREN)) {
-            val condition = expression()
-            consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
-            val body = statement()
-            return Stmt.While(condition, body)
-        } else {
-            val condition = expression()
-            val body = statement()
-            return Stmt.While(condition, body)
-        }
-    }
+    private fun scenarioStatement(): Stmt {
+        val name = consume(IDENTIFIER, "Expect scenario name.")
+        consume(LEFT_BRACE, "Expect '{' before scenario body.")
 
-    private fun returnStatement(): Stmt {
-        val value = if (!check(TokenType.SEMICOLON)) expression() else null
-        consumeOptionalSemicolon()
-        return Stmt.Return(previous(), value)
-    }
-
-    private fun blockStatement(): Stmt.Block {
         val statements = mutableListOf<Stmt>()
-        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
-            statements.add(declaration())
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(statement())
         }
-        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
-        return Stmt.Block(statements)
+
+        consume(RIGHT_BRACE, "Expect '}' after scenario body.")
+        return Stmt.Scenario(name, statements)
     }
 
-    // ===============================
-    // EXPRESSIONS
-    // ===============================
+    private fun ifStmt(): Stmt {
+        val condition = expression()
+        match(THEN)                     //optional THEN
+        consume(NEWLINE, "Expect newline after IF condition or THEN.")
+
+        val thenBranch: Stmt = if (match(INDENT)) {
+            parseIndentedBlock("Expect end of IF block.")
+        } else {
+            // single-line then branch
+            statement()
+        }
+
+        val elseifBranches = mutableListOf<Pair<Expr, Stmt>>()
+        
+        // Parse all ELSEIF branches
+        while (match(ELSEIF)) {
+            val elseifCondition = expression()
+            match(THEN)  // optional THEN after ELSEIF
+            consume(NEWLINE, "Expect newline after ELSEIF condition or THEN.")
+            
+            val elseifBranch: Stmt = if (match(INDENT)) {
+                parseIndentedBlock("Expect end of ELSEIF block.")
+            } else {
+                // single-line elseif branch
+                statement()
+            }
+            
+            elseifBranches.add(Pair(elseifCondition, elseifBranch))
+        }
+
+        var elseBranch: Stmt? = null
+
+        if (match(ELSE)) {
+            consume(NEWLINE, "Expect newline after ELSE.")
+            elseBranch = if (match(INDENT)) {
+                parseIndentedBlock("Expect end of ELSE block.")
+            } else {
+                // single-line else branch
+                statement()
+            }
+        }
+
+        consume(END, "Expect END after IF block.")
+        consume(NEWLINE, "Expect newline after END.")
+
+        return Stmt.IfStmt(condition, thenBranch, elseifBranches, elseBranch)
+    }
+    //looping recursion
+    private fun whileStmt(): Stmt {
+        val condition = expression()
+        consume(WHILE, "Expect 'while'.")
+        consume(LEFT_PAREN, "Expect '(' after 'while'.")
+
+        consume(RIGHT_PAREN, "Expect ')' after condition.")
+        val body = statement()
+        return Stmt.While(condition, body)
+    }
+    
+    private fun forStmt(): Stmt {
+        val variable = consumeIdentifierLike("Expect variable name after 'for'.")
+        consume(IN, "Expect 'in' after variable name.")
+        val iterable = expression()
+        consume(NEWLINE, "Expect newline after 'for ... in ...'.")
+        
+        val body: Stmt = if (match(INDENT)) {
+            parseIndentedBlock("Expect end of FOR block.")
+        } else {
+            // single-line for body
+            statement()
+        }
+        
+        return Stmt.For(variable, iterable, body)
+    }
+
+    // ==========================================================
+    // EXPRESSIONS (Pratt Parser)
+    // ==========================================================
+
+    fun parseExpression(): Expr = assignment()
 
     private fun expression(): Expr = assignment()
 
     private fun assignment(): Expr {
-        val expr = equality()
-        if (match(TokenType.EQUAL, TokenType.PAK)) {
+        val expr = logicOr()
+
+        if (match(EQUAL)) {
             val equals = previous()
             val value = assignment()
+
             if (expr is Expr.Variable) {
                 return Expr.Assign(expr.name, value)
             }
+
             throw error(equals, "Invalid assignment target.")
+        }
+
+        return expr
+    }
+
+    private fun logicOr(): Expr {
+        var expr = logicAnd()
+        while (match(OR, OR_OR)) {
+            val op = previous()
+            val right = logicAnd()
+            expr = Expr.Binary(expr, op, right)
+        }
+        return expr
+    }
+
+    private fun logicAnd(): Expr {
+        var expr = equality()
+        while (match(AND, AND_AND)) {
+            val op = previous()
+            val right = equality()
+            expr = Expr.Binary(expr, op, right)
         }
         return expr
     }
 
     private fun equality(): Expr {
         var expr = comparison()
-        while (match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
+        while (match(EQUAL_EQUAL, BANG_EQUAL)) {
             val op = previous()
             val right = comparison()
             expr = Expr.Binary(expr, op, right)
@@ -172,7 +248,7 @@ class Parser(private val tokens: List<Token>) {
 
     private fun comparison(): Expr {
         var expr = term()
-        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
+        while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
             val op = previous()
             val right = term()
             expr = Expr.Binary(expr, op, right)
@@ -182,7 +258,7 @@ class Parser(private val tokens: List<Token>) {
 
     private fun term(): Expr {
         var expr = factor()
-        while (match(TokenType.MINUS, TokenType.PLUS)) {
+        while (match(PLUS, MINUS)) {
             val op = previous()
             val right = factor()
             expr = Expr.Binary(expr, op, right)
@@ -192,7 +268,7 @@ class Parser(private val tokens: List<Token>) {
 
     private fun factor(): Expr {
         var expr = unary()
-        while (match(TokenType.SLASH, TokenType.STAR)) {
+        while (match(STAR, SLASH, PERCENT)) {
             val op = previous()
             val right = unary()
             expr = Expr.Binary(expr, op, right)
@@ -201,7 +277,7 @@ class Parser(private val tokens: List<Token>) {
     }
 
     private fun unary(): Expr {
-        if (match(TokenType.BANG, TokenType.NOT, TokenType.MINUS, TokenType.DEHINS)) {
+        if (match(BANG, NOT, MINUS)) {
             val op = previous()
             val right = unary()
             return Expr.Unary(op, right)
@@ -212,83 +288,153 @@ class Parser(private val tokens: List<Token>) {
     private fun call(): Expr {
         var expr = primary()
         while (true) {
-            if (match(TokenType.LEFT_PAREN)) {
+            if (match(LEFT_PAREN)) {
                 expr = finishCall(expr)
-            } else break
+            } else if (match(DOT)) {
+                val name = consume(IDENTIFIER, "Expect property name after '.'.")
+                expr = FinanceExpr.ColumnAccess(expr, name)
+            } else if (match(LEFT_BRACKET)) {
+                val start = expression()
+                var end: Expr? = null
+                if (match(COLON)) {
+                    end = expression()
+                }
+                val rb = consume(RIGHT_BRACKET, "Expect ']' after index or slice.")
+                expr = Expr.Subscript(expr, start, end, rb)
+            } else {
+                break
+            }
         }
         return expr
     }
 
-    private fun finishCall(callee: Expr): Expr {
-        val arguments = mutableListOf<Expr>()
-        if (!check(TokenType.RIGHT_PAREN)) {
-            do {
-                if (arguments.size >= 255)
-                    error(peek(), "Can't have more than 255 arguments.")
-                arguments.add(expression())
-            } while (match(TokenType.COMMA))
-        }
-        val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
-        return Expr.Call(callee, paren, arguments)
-    }
-
     private fun primary(): Expr {
-        if (match(TokenType.NUMBER, TokenType.STRING))
+        if (match(TRUE)) return Expr.Literal(true)
+        if (match(FALSE)) return Expr.Literal(false)
+        if (match(NULL)) return Expr.Literal(null)
+        if (match(NUMBER, STRING, MULTILINE_STRING)) {
             return Expr.Literal(previous().literal)
-        if (match(TokenType.TRUE, TokenType.OMSIM)) return Expr.Literal(true)
-        if (match(TokenType.FALSE, TokenType.CHAROT)) return Expr.Literal(false)
-        if (match(TokenType.NULL, TokenType.OLATS)) return Expr.Literal(null)
-        if (match(TokenType.IDENTIFIER)) return Expr.Variable(previous())
-        if (match(TokenType.LEFT_PAREN)) {
+        }
+        // Scope resolution: global::var or parent::var
+        if (check(IDENTIFIER)) {
+            val scopeToken = peek()
+            val next1 = peekNext(1)
+            val next2 = peekNext(2)
+            if (next1?.type == COLON && next2?.type == COLON) {
+                advance() // consume identifier
+                val scopeName = scopeToken.lexeme.lowercase()
+                advance() // consume first colon
+                advance() // consume second colon
+                val name = consumeIdentifierLike("Expect variable name after '::'.")
+                val scopeType = when (scopeName) {
+                    "global" -> Expr.ScopeType.GLOBAL
+                    "parent" -> Expr.ScopeType.PARENT
+                    else -> throw error(scopeToken, "Unknown scope qualifier '$scopeName'. Use 'global' or 'parent'.")
+                }
+                return Expr.ScopeResolution(scopeType, name)
+            }
+        }
+        if (match(
+                IDENTIFIER,
+                NPV, IRR, PV, FV,
+                WACC, CAPM, VAR,
+                SMA, EMA, AMORTIZE
+            )) {
+            return Expr.Variable(previous())
+        }
+        /*
+        if (match(TIMESERIES)) {
+            return parseTimeSeriesCall()
+        }
+        */
+        if (match(LEFT_PAREN)) {
             val expr = expression()
-            consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
+            consume(RIGHT_PAREN, "Expect ')' after expression.")
             return Expr.Grouping(expr)
         }
-        throw error(peek(), "Expect expression.")
+
+        if (match(LEFT_BRACKET)) return parseListLiteral()
+
+        // Try finance expression parsing
+        if (check(TABLE)) {
+            val financeExpr = financeParser.parseFinanceExpression()
+            if (financeExpr != null) return financeExpr
+        }
+        if (check(CASHFLOW)) {
+            val financeExpr = financeParser.parseFinanceExpression()
+            if (financeExpr != null) return financeExpr
+        }
+        if (check(PORTFOLIO)) {
+            val financeExpr = financeParser.parseFinanceExpression()
+            if (financeExpr != null) return financeExpr
+        }
+
+        val err = error(peek(), "Expected expression.")
+        throw err
     }
 
-    // ===============================
-    // CLASS & FUNCTION DECLARATIONS
-    // ===============================
-
-    private fun classDeclaration(): Stmt {
-        val name = consume(TokenType.IDENTIFIER, "Expect class name after 'peg'.")
-        var superclass: Expr.Variable? = null
-        if (match(TokenType.EXTENDS, TokenType.NAOL)) {
-            consume(TokenType.IDENTIFIER, "Expect superclass name after 'naol'.")
-            superclass = Expr.Variable(previous())
+    // ===========================
+    // Finance-specific literals & statements
+    // ===========================
+    /*
+    private fun parseTimeSeriesCall(): Expr {
+        consume(LEFT_PAREN, "Expect '(' after 'timeseries'.")
+        if (check(RIGHT_PAREN)) {
+            throw error(peek(), "timeseries() requires exactly 2 arguments: source and window.")
         }
-        consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
-        val methods = mutableListOf<Stmt.Function>()
-        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
-            methods.add(functionDeclaration("method"))
+        val source = expression()
+        if (!match(COMMA)) {
+            throw error(peek(), "timeseries() requires exactly 2 arguments: source and window.")
         }
-        consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
-        return Stmt.Class(name, superclass, methods)
+        val window = expression()
+        // Check for extra arguments
+        if (match(COMMA)) {
+            throw error(previous(), "timeseries() requires exactly 2 arguments, but more were provided.")
+        }
+        consume(RIGHT_PAREN, "Expect ')' after timeseries arguments.")
+        return Expr.TimeSeries(source, window)
     }
-
-    private fun functionDeclaration(kind: String): Stmt.Function {
-        val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
-        consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
-        val parameters = mutableListOf<Token>()
-        if (!check(TokenType.RIGHT_PAREN)) {
+    */
+    private fun finishCall(callee: Expr): Expr {
+        val args = mutableListOf<Expr>()
+        if (!check(RIGHT_PAREN)) {
             do {
-                if (parameters.size >= 255)
-                    throw error(peek(), "Can't have more than 255 parameters.")
-                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."))
-            } while (match(TokenType.COMMA))
+                if (args.size >= 255) {
+                    throw error(peek(), "Can't have more than 255 arguments.")
+                }
+                args.add(expression())
+            } while (match(COMMA))
         }
-        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
-        val body = blockStatement()
-        val isConstructor = name.lexeme == "simula"
-        return Stmt.Function(name, parameters, body, isConstructor)
+        val parenToken = consume(RIGHT_PAREN, "Expect ')' after arguments.")
+
+        // Try finance function call delegation
+        if (callee is Expr.Variable) {
+            val financeExpr = financeParser.parseFinanceCall(callee, args)
+            if (financeExpr != null) return financeExpr
+        }
+
+        return Expr.Call(callee, parenToken, args)
     }
 
-    // ===============================
+    // ===========================
     // HELPERS
-    // ===============================
+    // ===========================
 
-    private fun match(vararg types: TokenType): Boolean {
+    private fun consumeIdentifierLike(message: String): Token {
+        if (check(IDENTIFIER) ||
+            check(NPV) || check(IRR) ||
+            check(PV) || check(FV) ||
+            check(WACC) || check(CAPM) ||
+            check(VAR) || check(SMA) ||
+            check(EMA) || check(AMORTIZE)
+        ) {
+            return advance()
+        }
+        throw error(peek(), message)
+    }
+
+    // Public for FinanceParser delegation
+    fun match(vararg types: TokenType): Boolean {
         for (t in types) {
             if (check(t)) {
                 advance()
@@ -298,77 +444,85 @@ class Parser(private val tokens: List<Token>) {
         return false
     }
 
-    private fun consume(type: TokenType, message: String): Token {
+    // Public for FinanceParser delegation
+    fun consume(type: TokenType, message: String): Token {
         if (check(type)) return advance()
         throw error(peek(), message)
     }
 
-    private fun check(type: TokenType): Boolean {
-        if (isAtEnd()) return false
-        return peek().type == type
-    }
+    // Public for FinanceParser delegation
+    fun check(type: TokenType): Boolean =
+        if (isAtEnd()) false else peek().type == type
 
-    private fun advance(): Token {
+    // Public for FinanceParser delegation
+    fun advance(): Token {
         if (!isAtEnd()) current++
         return previous()
     }
 
-    private fun isAtEnd(): Boolean = peek().type == TokenType.EOF
+    // Public for FinanceParser delegation
+    fun isAtEnd(): Boolean =
+        peek().type == EOF
 
-    private fun peek(): Token = tokens[current]
+    // Public for FinanceParser delegation
+    fun peek(): Token = tokens[current]
+    
+    // Public for FinanceParser delegation
+    fun peekNext(offset: Int = 1): Token? {
+        val index = current + offset
+        return if (index < tokens.size) tokens[index] else null
+    }
 
-    private fun previous(): Token = tokens[current - 1]
+    // Public for FinanceParser delegation
+    fun previous(): Token = tokens[current - 1]
 
-    private fun error(token: Token, message: String): ParseError {
-        val where = if (token.type == TokenType.EOF) "at end" else "at '${token.lexeme}'"
-        val full = "[line ${token.line}] Error $where: $message"
-        System.err.println(full)
-        return ParseError(full)
+    // Public for FinanceParser delegation
+    fun error(token: Token, message: String): RuntimeException {
+        System.err.println("[line ${token.line}] Error at '${token.lexeme}': $message")
+        return RuntimeException(message)
     }
 
     private fun synchronize() {
         advance()
         while (!isAtEnd()) {
-            if (previous().type == TokenType.SEMICOLON) return
+            if (previous().type == NEWLINE) return
             when (peek().type) {
-                TokenType.CLASS, TokenType.FUN, TokenType.FOR, TokenType.IF, TokenType.WHILE, TokenType.RETURN -> return
-                else -> advance()
+                LET, SET, IF, PRINT, LOG, RUN, PORTFOLIO, SCENARIO -> return
+                DEDENT -> return
+                else -> {}
             }
+            advance()
         }
     }
+    //newline skipper
+    // Public for FinanceParser delegation
+    fun skipNewlines() {
+        while(match(TokenType.NEWLINE)) {}
+    }
+    //indent-dedent block parser
+    private fun parseIndentedBlock(expectMessage: String): Stmt.Block {
+        val stmts = mutableListOf<Stmt>()
+        while (!check(DEDENT) && !isAtEnd()) {
+            skipNewlines()
+            if(check(TokenType.DEDENT)) break
+            stmts.add(statement())
+        }
+        consume(DEDENT, expectMessage)
+        return Stmt.Block(stmts)
+    }
 
-    private fun consumeOptionalSemicolon() {
-        if (match(TokenType.SEMICOLON)) return
+    private fun parseListLiteral(): Expr {
+        val elements = mutableListOf<Expr>()
+
+        if (!check(RIGHT_BRACKET)) {
+            do {
+                skipNewlines()
+                elements.add(expression())
+                skipNewlines()
+            } while (match(COMMA))
+        }
+
+        consume(RIGHT_BRACKET, "Expected ']' after list literal")
+        return Expr.ListLiteral(elements)
     }
 }
-
-/*
- This file implements the recursive descent parser for the Teleris language.
- It converts a token stream from the Scanner into an Abstract Syntax Tree (AST).
-
-purpose:
- -to validate and structure syntax based on grammar rules.
- -to build AST nodes representing expressions, statements, and declarations.
- -to gracefully handle and recover from syntax errors.
-
-summary:
- expression → assignment ;
- assignment → IDENTIFIER "=" assignment | equality ;
- equality   → comparison ( ( "!=" | "==" ) comparison )* ;
- comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
- term       → factor ( ( "-" | "+" ) factor )* ;
- factor     → unary ( ( "/" | "*" ) unary )* ;
- unary      → ( "!" | "-" ) unary | call ;
- call       → primary ( "(" arguments? ")" )* ;
- primary    → NUMBER | STRING | "true" | "false" | "nir" | IDENTIFIER | "(" expression ")" ;
-
-Key functions:
- -parse(): main entry point returning list of Stmt nodes
- -expression(), term(), factor(): recursive grammar rules
- -error(), synchronize(): error handling and recovery
- -functionDeclaration(), classDeclaration(): handle top-level constructs
-
-importance:
- The parser ensures syntactic correctness and builds structured ASTs that
- can be later printed, interpreted, or compiled.
- */
