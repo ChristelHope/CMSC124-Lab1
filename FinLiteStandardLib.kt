@@ -4,6 +4,25 @@ object FinLiteStandardLib {
 
     fun loadInto(env: Environment, interpreter: Interpreter) {
         // -------------------------
+        // VALUATION MODEL
+        // -------------------------
+        env.define("valuation_model", RuntimeValue.Function(object : Callable {
+            override fun arity() = -1
+            override fun call(ctx: Any?, arguments: List<Any?>): Any? {
+                val rate = when (val v = interpreter.getCurrentEnvironment().get("rate")) {
+                    is RuntimeValue.Number -> v.value
+                    else -> 0.0
+                }
+                val growth = when (val v = interpreter.getCurrentEnvironment().get("growth")) {
+                    is RuntimeValue.Number -> v.value
+                    else -> 0.0
+                }
+                println("Model: rate=$rate, growth=$growth")
+                return rate * growth
+            }
+        }))
+
+        // -------------------------
         // BASIC FUNCTIONS
         // -------------------------
         env.define("print", RuntimeValue.Function(object : Callable {
@@ -118,51 +137,6 @@ object FinLiteStandardLib {
             override fun arity() = -1
             override fun call(ctx: Any?, arguments: List<Any?>): Any? {
                 throw RuntimeException(arguments.joinToString(" "))
-            }
-        }))
-
-        //replaceString(original, index, newValue)
-        env.define("replaceString", RuntimeValue.Function(object : Callable {
-            override fun arity() = -1
-            override fun call(ctx: Any?, arguments: List<Any?>): Any? {
-                if (arguments.size < 3) {
-                    throw RuntimeException("replaceString() requires 3 arguments: (string, index, newValue)")
-                }
-
-                // 1) Original string
-                val original = when (val v = arguments[0]) {
-                    is RuntimeValue.String -> v.value
-                    is String -> v
-                    else -> v?.toString()
-                        ?: throw RuntimeException("replaceString(): first argument must be a string")
-                }
-
-                // 2) Index
-                val index = when (val v = arguments[1]) {
-                    is RuntimeValue.Number -> v.value.toInt()
-                    is Number -> v.toInt()
-                    else -> v?.toString()?.toIntOrNull()
-                        ?: throw RuntimeException("replaceString(): second argument must be an integer index")
-                }
-
-                if (index < 0 || index >= original.length) {
-                    throw RuntimeException("replaceString(): index $index out of bounds for string of length ${original.length}")
-                }
-
-                // 3) Replacement text
-                val replacement = when (val v = arguments[2]) {
-                    is RuntimeValue.String -> v.value
-                    is String -> v
-                    else -> v?.toString()
-                        ?: throw RuntimeException("replaceString(): third argument must be a string")
-                }
-
-                // Build new string: original[0:index] + replacement + original[index+1:]
-                val before = original.substring(0, index)
-                val after = if (index + 1 < original.length) original.substring(index + 1) else ""
-                val result = before + replacement + after
-
-                return RuntimeValue.String(result)
             }
         }))
 

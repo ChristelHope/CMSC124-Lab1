@@ -167,29 +167,32 @@ class Parser(private val tokens: List<Token>) {
     //looping recursion
     private fun whileStmt(): Stmt {
         val condition = expression()
-        consume(WHILE, "Expect 'while'.")
-        consume(LEFT_PAREN, "Expect '(' after 'while'.")
+        consume(NEWLINE, "Expect newline after WHILE condition.")
 
-        consume(RIGHT_PAREN, "Expect ')' after condition.")
-        val body = statement()
-        return Stmt.While(condition, body)
+        val body = if (match(INDENT)) {
+            parseIndentedBlock("Expect end of WHILE block.")
+        } else {
+            statement()
+        }
+
+        return Stmt.WhileStmt(condition, body)
     }
     
     private fun forStmt(): Stmt {
-        val variable = consumeIdentifierLike("Expect variable name after 'for'.")
-        consume(IN, "Expect 'in' after variable name.")
+        val variable = consumeIdentifierLike("Expect variable name after FOR.")
+        consume(IN, "Expect 'IN' after loop variable.")
+
         val iterable = expression()
-        consume(NEWLINE, "Expect newline after 'for ... in ...'.")
-        
-        val body: Stmt = if (match(INDENT)) {
-            parseIndentedBlock("Expect end of FOR block.")
-        } else {
-            // single-line for body
-            statement()
-        }
-        
-        return Stmt.For(variable, iterable, body)
+        consume(NEWLINE, "Expect newline after FOR ... IN ...")
+
+        val body =
+            if (match(INDENT)) parseIndentedBlock("Expect DEDENT after FOR block.")
+            else statement()
+
+        return Stmt.ForEach(variable, iterable, body)
     }
+
+
 
     // ==========================================================
     // EXPRESSIONS (Pratt Parser)
@@ -294,13 +297,27 @@ class Parser(private val tokens: List<Token>) {
                 val name = consume(IDENTIFIER, "Expect property name after '.'.")
                 expr = FinanceExpr.ColumnAccess(expr, name)
             } else if (match(LEFT_BRACKET)) {
-                val start = expression()
+                var start: Expr? = null
                 var end: Expr? = null
+                var isSlice = false
+                
+                // Check if this is a slice starting with :
+                if (check(COLON)) {
+                    start = Expr.Literal(0) // Default start to 0
+                    isSlice = true
+                } else {
+                    start = expression()
+                }
+                
                 if (match(COLON)) {
-                    end = expression()
+                    isSlice = true
+                    // Allow empty end for open-ended slices like s[2:]
+                    if (!check(RIGHT_BRACKET)) {
+                        end = expression()
+                    }
                 }
                 val rb = consume(RIGHT_BRACKET, "Expect ']' after index or slice.")
-                expr = Expr.Subscript(expr, start, end, rb)
+                expr = Expr.Subscript(expr, start, end, rb, isSlice)
             } else {
                 break
             }

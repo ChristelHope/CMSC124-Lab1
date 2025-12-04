@@ -11,17 +11,6 @@ fun main() {
     // Load standard library with interpreter
     FinLiteStandardLib.loadInto(globalEnvironment, interpreter)
     
-    // Define your valuation model (wrapped as RuntimeValue.Function)
-    globalEnvironment.define("valuation_model", RuntimeValue.Function(object : Callable {
-        override fun arity() = -1
-        override fun call(ctx: Any?, arguments: List<Any?>): Any? {
-            val rate = arguments.getOrNull(0)?.toString()?.toDouble() ?: 0.0
-            val growth = arguments.getOrNull(1)?.toString()?.toDouble() ?: 0.0
-            println("Model: rate=$rate, growth=$growth")
-            return rate * growth
-        }
-    }))
-    
     // Check if input is piped or interactive
     val isInteractive = System.console() != null
     

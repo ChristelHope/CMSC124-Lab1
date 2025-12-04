@@ -137,7 +137,10 @@ class Scanner(
     // Basic helpers
     private fun isAtEnd(): Boolean = current >= source.length
 
-    private fun advance(): Char = source[current++]
+    private fun advance(): Char {
+        if (isAtEnd()) return '\u0000'
+        return source[current++]
+    }
 
     private fun peek(): Char =
         if (isAtEnd()) '\u0000' else source[current]
@@ -175,16 +178,23 @@ class Scanner(
         current = i
         start = current
 
-        while (spaces < indentStack.last()) {
-            indentStack.removeLastOrNull() ?: run {
-                error("Indentation error: unexpected dedent")
-                return
-            }
+        // Skip indentation handling for blank lines or end of file
+        if (peek() == '\n' || isAtEnd()) return
+
+        val currentIndent = indentStack.lastOrNull() ?: 0
+
+        // Handle dedents (decrease in indentation)
+        while (spaces < currentIndent && indentStack.size > 1) {
+            indentStack.removeLastOrNull()
             addToken(TokenType.DEDENT)
         }
         
-        if (peek() == '\n' || isAtEnd()) return
+        // Handle indents (increase in indentation)
+        if (spaces > currentIndent) {
+            indentStack.addLast(spaces)
+            addToken(TokenType.INDENT)
         }
+    }
 
     // Block comment scanning
     private fun handleBlockComment() {

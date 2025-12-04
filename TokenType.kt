@@ -22,6 +22,7 @@ val keywords: Map<String, TokenType> = mapOf(
     "else" to TokenType.ELSE,
     "elseif" to TokenType.ELSEIF,
     "end" to TokenType.END,
+    "do" to TokenType.DO,
 
     "print" to TokenType.PRINT,
     "log" to TokenType.LOG,
@@ -90,7 +91,7 @@ enum class TokenType {
 
     TABLE, CASHFLOW, TIMESERIES,COMPARE,SCENARIO, RUN, ON, SIMULATE,PORTFOLIO, ENTRY, DEBIT, CREDIT, LEDGER,
 
-    FROM, TO, STEP, IN,
+    FROM, TO, STEP, IN, DO,
 
     // Finance built-ins
     NPV, IRR, PV, FV, WACC, CAPM, VAR,SMA, EMA, AMORTIZE,

@@ -62,7 +62,7 @@ class Interpreter (
                 }
             }
 
-            is Stmt.While -> {
+            is Stmt.WhileStmt -> {
                 val loopEnv = Environment(currentEnvironment)
                 val previousEnv = currentEnvironment
                 currentEnvironment = loopEnv
@@ -76,17 +76,53 @@ class Interpreter (
             }
 
             is Stmt.For -> {
+                val loopEnv = Environment(currentEnvironment)
+                val previousEnv = currentEnvironment
+                currentEnvironment = loopEnv
+                try {
+                    val startVal = evaluate(stmt.start).asNumber(" in FOR loop start")
+                    val endVal = evaluate(stmt.end).asNumber(" in FOR loop end")
+                    val stepVal = stmt.step?.let { evaluate(it).asNumber(" in FOR loop step") } ?: 1.0
+                    
+                    if (stepVal == 0.0) {
+                        throw RuntimeError(null, "FOR loop step cannot be zero.")
+                    }
+                    
+                    val start = startVal.toInt()
+                    val end = endVal.toInt()
+                    val step = stepVal.toInt()
+                    
+                    if (step > 0) {
+                        var i = start
+                        while (i <= end) {
+                            loopEnv.define(stmt.variable.lexeme, RuntimeValue.Number(i.toDouble()))
+                            execute(stmt.body)
+                            i += step
+                        }
+                    } else {
+                        var i = start
+                        while (i >= end) {
+                            loopEnv.define(stmt.variable.lexeme, RuntimeValue.Number(i.toDouble()))
+                            execute(stmt.body)
+                            i += step
+                        }
+                    }
+                } finally {
+                    currentEnvironment = previousEnv
+                }
+            }
+
+            is Stmt.ForEach -> {
                 val iterableValue = evaluate(stmt.iterable)
                 val elements = when (iterableValue) {
                     is RuntimeValue.ListValue -> iterableValue.elements
                     is RuntimeValue.String -> iterableValue.value.map { RuntimeValue.String(it.toString()) }
                     is RuntimeValue.Table -> {
-                        // Iterate over table rows
                         val table = iterableValue
                         val firstCol = table.columns.values.firstOrNull() ?: emptyList()
                         firstCol.indices.map { rowIndex ->
                             val rowData = table.columns.mapValues { (_, col) -> RuntimeValue.Number(col[rowIndex]) }
-                            RuntimeValue.Table(mapOf()) // Simplified - could return row as map
+                            RuntimeValue.Table(mapOf())
                         }
                     }
                     else -> throw RuntimeError(
@@ -95,7 +131,6 @@ class Interpreter (
                     )
                 }
                 
-                // Create child environment for loop variable with proper scoping
                 val loopEnv = Environment(currentEnvironment)
                 val previousEnv = currentEnvironment
                 currentEnvironment = loopEnv
@@ -361,7 +396,7 @@ class Interpreter (
             is RuntimeValue.ListValue -> {
                 val list = container.elements
                 
-                if (endVal == null) {
+                if (!expr.isSlice) {
                     // Simple index access
                     if (startIndex < 0 || startIndex >= list.size) {
                         throw RuntimeError(expr.bracket, "Index $startIndex out of bounds for list of size ${list.size}.")
@@ -369,7 +404,7 @@ class Interpreter (
                     list[startIndex]
                 } else {
                     // Slice access
-                    val endIndex = endVal.asNumber(" as subscript end index").toInt()
+                    val endIndex = endVal?.asNumber(" as subscript end index")?.toInt() ?: list.size
                     
                     if (startIndex < 0 || endIndex < startIndex || startIndex > list.size) {
                         throw RuntimeError(expr.bracket, "Invalid slice range [$startIndex:$endIndex] for list of size ${list.size}.")
@@ -379,23 +414,23 @@ class Interpreter (
                     RuntimeValue.ListValue(list.subList(startIndex, to))
                 }
             }
-
+        
             is RuntimeValue.String -> {
                 val value = container.value
 
-                if (endVal == null) {
+                if (!expr.isSlice) {
+                    // Simple index access
                     if (startIndex < 0 || startIndex >= value.length) {
                         throw RuntimeError(expr.bracket, "Index $startIndex out of bounds.")
                     }
                     RuntimeValue.String(value[startIndex].toString())
                 } else {
                     // Slice access: substring 
-                    val endIndex = endVal.asNumber(" as subscript end index").toInt()
+                    val endIndex = endVal?.asNumber(" as subscript end index")?.toInt() ?: value.length
 
                     if (startIndex < 0 || endIndex < startIndex || startIndex > value.length) {
                         throw RuntimeError(expr.bracket, "Invalid slice range [$startIndex:$endIndex] for string of length ${value.length}.")
                     }
-
                     val to = minOf(endIndex, value.length)
                     RuntimeValue.String(value.substring(startIndex, to))
                 }

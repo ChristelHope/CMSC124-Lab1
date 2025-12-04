@@ -16,7 +16,7 @@ sealed class Expr {
     data class Call(val callee: Expr, val paren: Token, val arguments: List<Expr>) : Expr()
     data class ListLiteral(val elements: List<Expr>) : Expr()
     data class Assign(val name: Token, val value: Expr) : Expr()
-    data class Subscript(val container: Expr, val index: Expr, val end: Expr?, val bracket: Token) : Expr()
+    data class Subscript(val container: Expr, val index: Expr, val end: Expr?, val bracket: Token, val isSlice: Boolean = false) : Expr()
     data class Get(val obj: Expr, val name: Token) : Expr()
     data class TimeSeries(val source: Expr, val window: Expr) : Expr()
 }
@@ -38,12 +38,20 @@ sealed class Stmt {
         val elseBranch: Stmt? = null
     ) : Stmt()
 
-    data class While(
+    data class WhileStmt(
         val condition: Expr,
         val body: Stmt
     ) : Stmt()
 
     data class For(
+        val variable: Token,
+        val start: Expr,
+        val end: Expr,
+        val step: Expr?,
+        val body: Stmt
+    ) : Stmt()
+
+    data class ForEach(
         val variable: Token,
         val iterable: Expr,
         val body: Stmt

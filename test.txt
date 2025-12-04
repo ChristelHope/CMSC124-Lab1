@@ -1,18 +1,12 @@
-LET CF = TABLE(
-    YEAR:    [1, 2, 3],
-    INFLOW:  [80000, 85000, 90000],
-    OUTFLOW: [30000, 35000, 40000]
-)
+###
 
-LET netCF = CF.INFLOW - CF.OUTFLOW
+LET s = "string"
+LET t = s[0:1] + "k" + s[2:]   # "skring"
+PRINT s
+PRINT t
 
-LET rate = 0.11
-LET npv = NPV(netCF, rate)
+###
 
-PRINT "NPV =" + npv
-
-IF npv > 0 THEN
-    PRINT "Decision: ACCEPT project."
-ELSE
-    PRINT "Decision: REJECT project."
+FOR i = 1 IN 5
+    PRINT i
 END

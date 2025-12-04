@@ -11,8 +11,12 @@ object AstPrinter {
             is Stmt.SetStmt -> "(set ${stmt.name.lexeme} ${printExpr(stmt.value)})"
             is Stmt.ExpressionStmt -> printExpr(stmt.expression)
             is Stmt.Print -> "(print ${printExpr(stmt.value)})"
-            is Stmt.While -> "(while ${printExpr(stmt.condition)} ${print(stmt.body)})"
-            is Stmt.For -> "(for ${stmt.variable.lexeme} in ${printExpr(stmt.iterable)} ${print(stmt.body)})"
+            is Stmt.WhileStmt -> "(while ${printExpr(stmt.condition)} ${print(stmt.body)})"
+            is Stmt.For -> {
+                val rangeStr = "${printExpr(stmt.start)} to ${printExpr(stmt.end)}" + (stmt.step?.let { " step ${printExpr(it)}" } ?: "")
+                "(for ${stmt.variable.lexeme} $rangeStr ${print(stmt.body)})"
+            }
+            is Stmt.ForEach -> "(foreach ${stmt.variable.lexeme} in ${printExpr(stmt.iterable)} ${print(stmt.body)})"
             is Stmt.Block -> {
                 val body = stmt.statements.joinToString(" ") { print(it) }
                 "(block $body)"
