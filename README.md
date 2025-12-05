@@ -1,64 +1,26 @@
-FinLite Programming Language
-
+CMSC 124 Lab
+'FinLite' Programming Language
 
 Creator
 Eleah Joy Melchor - levi00sa
 Christel Hope Ong - ChristelHope
 
-
-[GRAMMAR]
-    Lab2 CFG:
-        program        → declaration* EOF ;
-        declaration    → "LET" IDENTIFIER "=" expression
-                    | statement ;
-        statement      → "SET" IDENTIFIER "=" expression
-                    | "PRINT" expression
-                    | ifStmt
-                    | scenarioStmt
-                    | expression ";" ;
-        ifStmt         → "IF" expression "THEN" statement* "END" ;
-        scenarioStmt   → "SCENARIO" IDENTIFIER ":" declaration* "END" ;
-        expression     → equality ;
-        equality       → comparison ( ( "==" | "!=" ) comparison )* ;
-        comparison     → term ( ( "<" | "<=" | ">" | ">=" ) term )* ;
-        term           → factor ( ( "+" | "-" ) factor )* ;
-        factor         → unary ( ( "*" | "/" | "%" ) unary )* ;
-
-        unary          → ( "!" | "-" ) unary
-                    | primary ;
-
-        primary        → NUMBER
-                    | STRING
-                    | TRUE
-                    | FALSE
-                    | NULL
-                    | IDENTIFIER ( "." IDENTIFIER )?
-                    | tableLiteral
-                    | "(" expression ")" ;
-
-        tableLiteral   → "TABLE" "(" field ( "," field )* ")" ;
-        field          → IDENTIFIER ":" "[" exprList "]" ;
-        exprList       → expression ( "," expression )* ;
-
-                   
-
-
 Language Overview [Provide a brief description of your programming language - what it's a designed for, its main characteristics]
-FinLite is a domain-specific programming language designed specifically for finance students and beginner analysts. It aims to simplify learning financial modeling by combining the familiarity of spreadsheets with essential programming concepts. FinLite removes the complexity of traditional languages while allowing its users to automate calculations, build models, and perform scenario and risk analysis using a clear, finance-native syntax.
+    FinLite is a domain-specific programming language designed specifically for finance students and beginner analysts. It aims to simplify learning financial modeling by combining the familiarity of spreadsheets with essential programming concepts. FinLite removes the complexity of traditional languages while allowing its users to automate calculations, build models, and perform scenario and risk analysis using a clear, finance-native syntax.
 
 The language supports the following:
-Variables, expressions, and assignments
-Tables and cashflow modeling
-Financial operations
-Conditionals and control flow
-Scenarios, simulations, and time-series data
-Portfolio and ledger operations
-Easy printing, logging, and validation
+    Variables, expressions, and assignments
+    Tables and cashflow modeling
+    Financial operations
+    Conditionals and control flow
+    Scenarios, simulations, and time-series data
+    Portfolio and ledger operations
+    Easy printing, logging, and validation
 
 Keywords [List all reserved words that cannot be used as identifiers - include the keyword and a brief description of its purpose]
 
     LET                 - used to declare a variable
-    SET                 - Used to assign or reassign a value to an existing variable
+    SET                 - Used to assign/reassign a value to an existing variable
     TABLE               - used to define a table
     ROW                 - Used to define a single row inside a table
     IF, ELSE, ELSEIF    - conditionals
@@ -275,9 +237,6 @@ Sample Code [Provide a few examples of valid code in your language to demonstrat
     END
 
 
-
-
-
 Design Rationale [Explain the reasoning behind your design choices]
     Finance students often struggle with syntax, complex data structures, learning Python/R, and fear of “traditional coding”. With the current advancement in finance tech, it is essential to aid them in learning and understanding financial modeling, risk analysis, model automations, data analysis, data manipulation, and more. Finance students typically think in cash flows, formulas, tables, transactions, scenarios, and risk, so we designed FinLite to be spreadsheet-native or Excel-like. By combining the familiarity of spreadsheets with the structure and clarity of code, FinLite makes financial modeling more intuitive and accurate. Instead of manually handling long formulas or error-prone cell references, students can describe financial scenarios, transactions, portfolios, and cash flow using readable and financial-friendly syntax.
     The language includes built-in functions for common tasks–NPV, IRR, discounting, amortization, risk metrics–so users can compute advanced financial values without reinventing formulas. 
@@ -285,7 +244,38 @@ Design Rationale [Explain the reasoning behind your design choices]
     The language is not:
         Excel - because it is scriptable and repeatable
         Python - because it is simple and domain-focused
+        R - since it is beginner-friendly
     
-    The language supports scenarios, sensitivity analysis, and time series operations so students can perform “what-if” analyses that require complicated Excel calculations. More advanced features such as multi-currency, date systems, and full portfolio simulations are planned for future versions.
- 
+    The language aims to support scenarios, sensitivity analysis, and time series operations so students can perform “what-if” analyses that require complicated Excel calculations. More advanced features such as multi-currency, date systems, and full portfolio simulations are planned for future versions.
 
+[GRAMMAR]
+
+    Lab2 CFG:    
+        program        → declaration* EOF ;
+        declaration    → "LET" IDENTIFIER "=" expression
+                    | statement ;
+        statement      → "SET" IDENTIFIER "=" expression
+                    | "PRINT" expression
+                    | ifStmt
+                    | scenarioStmt
+                    | expression ";" ;
+        ifStmt         → "IF" expression "THEN" statement* "END" ;
+        scenarioStmt   → "SCENARIO" IDENTIFIER ":" declaration* "END" ;
+        expression     → equality ;
+        equality       → comparison ( ( "==" | "!=" ) comparison )* ;
+        comparison     → term ( ( "<" | "<=" | ">" | ">=" ) term )* ;
+        term           → factor ( ( "+" | "-" ) factor )* ;
+        factor         → unary ( ( "*" | "/" | "%" ) unary )* ;
+        unary          → ( "!" | "-" ) unary
+                    | primary ;
+        primary        → NUMBER
+                    | STRING
+                    | TRUE
+                    | FALSE
+                    | NULL
+                    | IDENTIFIER ( "." IDENTIFIER )?
+                    | tableLiteral
+                    | "(" expression ")" ;
+        tableLiteral   → "TABLE" "(" field ( "," field )* ")" ;
+        field          → IDENTIFIER ":" "[" exprList "]" ;
+        exprList       → expression ( "," expression )* ;
