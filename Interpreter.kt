@@ -79,38 +79,32 @@ class Interpreter (
                 val loopEnv = Environment(currentEnvironment)
                 val previousEnv = currentEnvironment
                 currentEnvironment = loopEnv
+
                 try {
-                    val startVal = evaluate(stmt.start).asNumber(" in FOR loop start")
-                    val endVal = evaluate(stmt.end).asNumber(" in FOR loop end")
-                    val stepVal = stmt.step?.let { evaluate(it).asNumber(" in FOR loop step") } ?: 1.0
-                    
-                    if (stepVal == 0.0) {
+                    val start = evaluate(stmt.start).asNumber(" in FOR start").toInt()
+                    val end = evaluate(stmt.end).asNumber(" in FOR end").toInt()
+                    val step = stmt.step?.let { evaluate(it).asNumber(" in FOR step").toInt() } ?: 1
+
+                    if (step == 0) {
                         throw RuntimeError(null, "FOR loop step cannot be zero.")
                     }
-                    
-                    val start = startVal.toInt()
-                    val end = endVal.toInt()
-                    val step = stepVal.toInt()
-                    
-                    if (step > 0) {
-                        var i = start
-                        while (i <= end) {
-                            loopEnv.define(stmt.variable.lexeme, RuntimeValue.Number(i.toDouble()))
-                            execute(stmt.body)
-                            i += step
-                        }
-                    } else {
-                        var i = start
-                        while (i >= end) {
-                            loopEnv.define(stmt.variable.lexeme, RuntimeValue.Number(i.toDouble()))
-                            execute(stmt.body)
-                            i += step
-                        }
+
+                    // define loop variable ONCE
+                    loopEnv.define(stmt.variable.lexeme, RuntimeValue.Number(start.toDouble()))
+
+                    var i = start
+                    while (if (step > 0) i <= end else i >= end) {
+                        // update loop variable
+                        loopEnv.assign(stmt.variable.lexeme, RuntimeValue.Number(i.toDouble()))
+
+                        execute(stmt.body)
+                        i += step
                     }
                 } finally {
                     currentEnvironment = previousEnv
                 }
             }
+
 
             is Stmt.ForEach -> {
                 val iterableValue = evaluate(stmt.iterable)

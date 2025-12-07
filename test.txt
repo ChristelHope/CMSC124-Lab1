@@ -1,12 +1,21 @@
 ###
-
 LET s = "string"
 LET t = s[0:1] + "k" + s[2:]   # "skring"
 PRINT s
 PRINT t
 
-###
+
 
 FOR i = 1 IN 5
     PRINT i
 END
+
+###
+
+LET x=1
+WHILE x<= 3 DO
+    PRINT x
+    SET x = x +1
+END
+
+
