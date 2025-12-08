@@ -19,9 +19,9 @@ val keywords: Map<String, TokenType> = mapOf(
     "while" to TokenType.WHILE,
     "for" to TokenType.FOR,
     "in" to TokenType.IN,
+    "end" to TokenType.END,
     "else" to TokenType.ELSE,
     "elseif" to TokenType.ELSEIF,
-    "end" to TokenType.END,
     "do" to TokenType.DO,
 
     "print" to TokenType.PRINT,

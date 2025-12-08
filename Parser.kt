@@ -167,16 +167,29 @@ class Parser(private val tokens: List<Token>) {
     //looping recursion
     private fun whileStmt(): Stmt {
         val condition = expression()
-        consume(NEWLINE, "Expect newline after WHILE condition.")
 
-        val body = if (match(INDENT)) {
-            parseIndentedBlock("Expect end of WHILE block.")
-        } else {
-            statement()
+        // Optional DO or THEN
+        match(TokenType.DO)
+        match(TokenType.THEN)
+
+        consume(TokenType.NEWLINE, "Expect newline after WHILE condition.")
+
+        val body =
+            if (match(TokenType.INDENT)) {
+                parseIndentedBlock("Expect DEDENT after WHILE block.")
+            } else {
+                statement()
+            }
+
+        // Support END (file mode)
+        if (match(TokenType.END)) {
+            consume(TokenType.NEWLINE, "Expect newline after END.")
         }
 
         return Stmt.WhileStmt(condition, body)
     }
+
+
     
     private fun forStmt(): Stmt {
         val variable = consumeIdentifierLike("Expect variable name after FOR.")
