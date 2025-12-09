@@ -33,6 +33,8 @@ sealed class Stmt {
 
     data class Block(val statements: List<Stmt>) : Stmt()
 
+    data class FunctionDecl(val name: Token, val params: List<Token>, val body: Block) : Stmt()
+
     data class IfStmt(
         val condition: Expr,
         val thenBranch: Stmt,

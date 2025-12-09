@@ -1,6 +1,3 @@
-
-# Short example: scenario sets a `result` and is run on the built-in `valuation_model`.
-# The standard `valuation_model` reads `rate` and `growth` from the scenario's local environment.
 ###
 LET rate = 0.10
 LET growth = 0.08
@@ -16,33 +13,12 @@ SCENARIO Bear
 RUN Bull ON valuation_model
 RUN Bear ON valuation_model
 
-# SIMULATE runs the scenario multiple times and stores results in `lastSimulation`.
-SCENARIO Example
-   LET rate = 0.07
-   LET growth = 0.05
-   LET result = rate * growth
-
-SIMULATE Example RUNS 3 STEP 1
-PRINT lastSimulation
-
-(exercise element-wise addition)
-LET a = [1, 2, 3]
-LET b = [4, 5, 6]
-PRINT sum(a)
-PRINT avg(a)
-PRINT a + b
-
-#Test string slicing/subscript:
+Test string slicing/subscript:
 LET s = "string"
-
 PRINT s[0] # "s"
-
 PRINT s[0:2] # "st"
-
 LET t = s[0:1] + "k" + s[2:]
-
 PRINT t # "skring"
-
 
 #Test finance calls (NPV/IRR/PV):
 PRINT NPV([-100, 60, 60], 0.1)
@@ -85,11 +61,6 @@ LET people = [
 { name: "Dana", age: 15 }
 ]
 
-LET adults = FILTER(people, p -> p.age >= 18)
-LET names = MAP(adults, p -> p.name)
-
-PRINT names
-
 # Test REDUCE: numeric sum (no initial)
 LET nums = [5, 10, 3, 7]
 LET sum = REDUCE(nums, (a, x) -> a + x)
@@ -108,15 +79,10 @@ PRINT sentence
 LET offset_sum = REDUCE([1, 2, 3], (a, x) -> a + x, 100)
 PRINT offset_sum
 
-LET sales = [1, 2, 3, 4]
-LET total_sales = MAP(sales, x -> x * x)
-PRINT total_sales
-
 LET people = [
-{ name: "Ana", age: 17 },
-{ name: "Ben", age: 22 },
-{ name: "Carlo", age: 30 },
-{ name: "Dana", age: 15 }
+    { name: "Ana", age: 17 },
+    { name: "Ben", age: 22 },
+    { name: "Carl", age: 30 }
 ]
 
 LET adults = FILTER(people, p -> p.age >= 18)
@@ -124,21 +90,117 @@ LET names = MAP(adults, p -> p.name)
 
 PRINT names
 
-###
-
-# Test lambdas directly
-LET f = (x) -> x * 2
-PRINT f(5)
-
-# Test MAP with lambda
 LET nums = [1, 2, 3, 4]
-LET doubled = MAP(nums, x -> x * 2)
-PRINT doubled
+LET total = REDUCE(nums, 0, (a, x) -> a + x)
+PRINT total
 
-# Test FILTER with lambda
-LET evens = FILTER(nums, x -> x > 2)
+LET nums = [1, 2, 3, 4, 5, 6]
+LET evens = FILTER(nums, x -> x % 2 == 0)
 PRINT evens
 
-# Test REDUCE with lambda
-LET sum = REDUCE(nums, (a, x) -> a + x)
-PRINT sum
+LET x = 10
+LET f = (y -> x + y)
+LET x = 50
+PRINT f(5)
+
+
+LET makeAdder = (a -> (b -> a + b))
+LET add5 = makeAdder(5)
+PRINT add5(10)
+
+LET values = [1, 2, 3, 4]
+LET squared = MAP(values, x -> x * x)
+PRINT squared
+
+LET add = (a, b) -> a + b
+PRINT add(3, 7)
+
+LET f = (x -> x + 1)
+PRINT f(5)
+
+LET nums = [1, 2, 3]
+
+LET makeMultiplier = (factor -> (x -> x * factor))
+
+LET result = MAP(nums, makeMultiplier(10))
+PRINT result
+
+LET x = 10
+LET f = (a -> a + x)
+PRINT MAP([1, 2, 3], f)
+
+LET makeAdder = (x -> (y -> x + y))
+LET add5 = makeAdder(5)
+PRINT add5(10)
+
+LET numbers = [3, 10, 7, 2, 18, 5]
+PRINT FILTER(numbers, n -> n % 2 == 0 || n > 15)
+
+LET nums = [1, 2, 3, 4]
+LET r = REDUCE(nums, (a, x) -> a * x, 1)
+PRINT r
+
+LET words = ["a", "b", "c"]
+PRINT REDUCE(words, (a, x) -> a + x, "")
+
+LET values = [1, "hello", true]
+PRINT MAP(values, v -> v)
+
+LET t = [
+    { name: "A", price: 100 },
+    { name: "B", price: 200 }
+]
+
+PRINT MAP(t, r -> r.price * 2)
+
+LET employees = [
+   { name: "Ken", salary: 3000 },
+   { name: "Mia", salary: 5000 }
+]
+
+LET raised = MAP(employees, e -> {name: e.name, salary: e.salary + 500})
+
+PRINT raised
+
+
+FUNC applyTwice(fn, x) {
+    return fn(fn(x))
+}
+
+PRINT applyTwice((y -> y * 2), 5)
+
+LET x = 100
+
+FUNC addX(v) {
+    return v + x
+}
+
+PRINT addX(5)
+
+PRINT MAP([1, 2, 3], x -> MAP([10, 20], y -> x + y))
+
+LET annual = 0.06
+LET monthlyRate = annual / 12
+LET months = 1 * 12
+
+LET sched = AMORTIZE(100000, monthlyRate, months)
+PRINT "whole column of payments"
+
+PRINT sched.payment       # whole column of payments
+
+PRINT "first payment"
+
+PRINT sched.payment[0]    # first payment
+
+PRINT "first interest amount"
+
+PRINT sched.interest[0]   # first interest amount
+
+PRINT "first principal portion"
+
+PRINT sched.principal[0]  # first principal portion
+
+PRINT "final balance"
+
+PRINT sched.balance[months - 1]  # final balance (should be 0 or near 0)
+###

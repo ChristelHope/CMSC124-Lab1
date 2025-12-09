@@ -112,7 +112,7 @@ class FinanceStatementExecutor(
         val result = child.getOrNull("result")
         val finalResult = if (model is RuntimeValue.Function) {
             val callable = (model as RuntimeValue.Function).callable
-            callable.call(child, listOf(result))
+            callable.call(local, listOf(result))
         } else {
             result
         }

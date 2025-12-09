@@ -74,6 +74,7 @@ class Scanner(
             '*' -> addToken(TokenType.STAR)
             '%' -> addToken(TokenType.PERCENT)
             '^' -> addToken(TokenType.CARET)
+            '/' -> addToken(TokenType.SLASH)
 
             '#' -> {
                 if (match('#') && match('#')) {
@@ -107,8 +108,14 @@ class Scanner(
 
             // Strings
             '"' -> {
-                if (match('"') && match('"')) multilineString()
-                else string()
+                // Check for triple-quoted string (""") - peek ahead without consuming
+                if (peek() == '"' && peekNext() == '"') {
+                    advance() // consume first "
+                    advance() // consume second "
+                    multilineString()
+                } else {
+                    string()
+                }
             }
 
             // Whitespace

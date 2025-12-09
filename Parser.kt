@@ -42,6 +42,7 @@ class Parser(private val tokens: List<Token>) {
 
         return try {
             when {
+                match(FUNC) -> functionDecl()
                 match(LET) -> letStmt()
                 match(SET) -> setStmt()
                 match(PRINT, LOG) -> printStmt()
@@ -75,6 +76,28 @@ class Parser(private val tokens: List<Token>) {
             synchronize()
             Stmt.ErrorStmt
         }
+    }
+
+    private fun functionDecl(): Stmt.FunctionDecl {
+        val name = consume(IDENTIFIER, "Expect function name.")
+        consume(LEFT_PAREN, "Expect '(' after function name.")
+        val params = mutableListOf<Token>()
+        if (!check(RIGHT_PAREN)) {
+            do {
+                params.add(consumeIdentifierLike("Expect parameter name in function declaration."))
+            } while (match(COMMA))
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameter list.")
+
+        consume(LEFT_BRACE, "Expect '{' before function body.")
+        val statements = mutableListOf<Stmt>()
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(statement())
+        }
+        consume(RIGHT_BRACE, "Expect '}' after function body.")
+        // optional newline after closing brace
+        if (match(NEWLINE)) { /* consume optional newline */ }
+        return Stmt.FunctionDecl(name, params, Stmt.Block(statements))
     }
 
     private fun letStmt(): Stmt {
@@ -433,9 +456,9 @@ class Parser(private val tokens: List<Token>) {
         throw err
     }
 
-    // ===========================
+    // =======================================
     // Finance-specific literals & statements
-    // ===========================
+    // =======================================
     /*
     private fun parseTimeSeriesCall(): Expr {
         consume(LEFT_PAREN, "Expect '(' after 'timeseries'.")

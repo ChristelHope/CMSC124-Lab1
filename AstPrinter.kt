@@ -38,6 +38,11 @@ object AstPrinter {
                 val body = stmt.statements.joinToString(" ") { print(it) }
                 "(scenario ${stmt.name.lexeme} $body)"
             }
+            is Stmt.FunctionDecl -> {
+                val params = stmt.params.joinToString(", ") { it.lexeme }
+                val body = stmt.body.statements.joinToString(" ") { print(it) }
+                "(func ${stmt.name.lexeme} ($params) $body)"
+            }
             is FinanceStmt.LedgerEntryStmt -> printLedgerEntry(stmt)
             is FinanceStmt.PortfolioStmt  -> printPortfolio(stmt)
             is FinanceStmt.ScenarioStmt   -> printScenario(stmt)

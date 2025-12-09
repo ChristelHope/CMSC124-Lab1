@@ -151,6 +151,33 @@ class Interpreter (
                 )
             }
 
+            is Stmt.FunctionDecl -> {
+                // Capture the defining environment for closure semantics
+                val captured = snapshotEnvironment(currentEnvironment)
+                val params = stmt.params
+
+                val callable = object : Callable {
+                    override fun arity() = params.size
+                    override fun call(interpreter: Interpreter?, arguments: List<RuntimeValue?>): RuntimeValue? {
+                        // Build a new env that chains to the captured snapshot
+                        val fnEnv = Environment(captured)
+                        // Bind parameters
+                        for (i in params.indices) {
+                            fnEnv.define(params[i].lexeme, if (i < arguments.size) arguments[i] else null)
+                        }
+                        return try {
+                            // Execute function body in its own environment
+                            executeBlock(stmt.body.statements, fnEnv)
+                            null
+                        } catch (r: ReturnValue) {
+                            r.value
+                        }
+                    }
+                }
+
+                currentEnvironment.define(stmt.name.lexeme, RuntimeValue.Function(callable))
+            }
+
             // Delegate finance statements to modularized executor
             is FinanceStmt -> financeExecutor.execute(stmt)
 
@@ -174,8 +201,9 @@ class Interpreter (
     fun evaluate(expr: Expr): RuntimeValue? {
         return when (expr) {
             is Expr.Lambda -> {
-                // Capture current environment for closure
-                RuntimeValue.Lambda(expr.params, expr.body, currentEnvironment)
+                // Capture current environment for closure by creating a snapshot
+                val snapshotEnv = snapshotEnvironment(currentEnvironment)
+                RuntimeValue.Lambda(expr.params, expr.body, snapshotEnv)
             }
             // Finance expressions
             is FinanceExpr -> evaluateFinanceExpr(expr)
@@ -290,6 +318,14 @@ class Interpreter (
                         RuntimeValue.Number(a / b)
                     }
 
+                    TokenType.PERCENT -> {
+                        val a = left.asNumber(" in modulo")
+                        val b = right.asNumber(" in modulo")
+                        if (b == 0.0) 
+                            throw RuntimeError(expr.operator, "Modulo by zero.")
+                        RuntimeValue.Number(a % b)
+                    }
+
                     TokenType.GREATER -> {
                         val a = left.asNumber(" in comparison")
                         val b = right.asNumber(" in comparison")
@@ -379,20 +415,7 @@ class Interpreter (
         }
 
         return try {
-            when (val result = callable.call(this, args)) {
-                is RuntimeValue -> result
-                is Double -> RuntimeValue.Number(result)
-                is String -> RuntimeValue.String(result)
-                is Boolean -> RuntimeValue.Bool(result)
-                is List<*> -> {
-                    // Safe cast with proper handling
-                    @Suppress("UNCHECKED_CAST")
-                    val elements = result as List<RuntimeValue?>
-                    RuntimeValue.ListValue(elements)
-                }
-                null -> null
-                else -> result as? RuntimeValue
-            }
+            callable.call(this, args)
         } catch (e: RuntimeError) {
             throw e  // Re-throw RuntimeErrors as-is
         } catch (e: Exception) {
@@ -531,16 +554,6 @@ class Interpreter (
         if (a == null && b == null) return true
         if (a == null || b == null) return false
         return finlite.isEqual(a, b)
-    }
-
-    fun builtin(fn: (List<Any?>) -> Any?): Callable {
-        return object : Callable {
-            override fun arity(): Int = -1  // variable arity
-            override fun call(ctx: Any?, arguments: List<Any?>): Any? {
-                return fn(arguments)
-            }
-            override fun toString(): String = "<builtin>"
-        }
     }
 
     private fun elementWiseNumericOp(
@@ -857,6 +870,33 @@ class Interpreter (
             }
         }
         return Cashflow(list)
+    }
+
+    // Helper function to create a snapshot of environment chain for closure capture
+    private fun snapshotEnvironment(env: Environment): Environment {
+        // Create a new environment that is a deep copy of the current scope chain
+        // This preserves the current values at lambda creation time
+        val snapshotChain = mutableListOf<Environment>()
+        var current: Environment? = env
+        
+        // Walk up the environment chain and collect all scopes
+        while (current != null) {
+            snapshotChain.add(0, current)
+            current = current.enclosing
+        }
+        
+        // Rebuild the chain with new Environment objects containing copied values
+        var snapshotEnv: Environment? = null
+        for (scope in snapshotChain) {
+            val newScope = Environment(snapshotEnv)
+            // Copy all values from this scope
+            scope.getValues().forEach { (name, value) ->
+                newScope.define(name, value)
+            }
+            snapshotEnv = newScope
+        }
+        
+        return snapshotEnv ?: globalEnvironment
     }
 
     // Public Accessors

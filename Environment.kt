@@ -2,7 +2,7 @@ package finlite
 import finlite.Callable
 
 class Environment(
-    private val enclosing: Environment? = null,
+    val enclosing: Environment? = null,
     val depth: Int = if (enclosing == null) 0 else enclosing.depth + 1
 ) {
     private val values = mutableMapOf<String, RuntimeValue?>()
@@ -77,6 +77,8 @@ class Environment(
 
     fun getOrNull(name: String): RuntimeValue? = 
         if (values.containsKey(name)) values[name] else null
+    
+    fun getValues(): Map<String, RuntimeValue?> = values.toMap()
     
     fun getAllVariables(): Map<String, RuntimeValue?> = values.toMap()
     

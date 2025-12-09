@@ -13,6 +13,7 @@ val keywords: Map<String, TokenType> = mapOf(
     // Core keywords
     "let" to TokenType.LET,
     "set" to TokenType.SET,
+    "func" to TokenType.FUNC,
 
     "if" to TokenType.IF,
     "then" to TokenType.THEN,
@@ -81,6 +82,9 @@ enum class TokenType {
 
     PLUS, MINUS, STAR, PERCENT, CARET,
     ARROW,
+
+    // Function declaration keyword
+    FUNC,
 
     // One or two character tokens
     EQUAL, EQUAL_EQUAL, BANG, BANG_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, AND_AND, OR_OR,

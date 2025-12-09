@@ -1,15 +1,18 @@
 package finlite
-import finlite.Callable
 
+//Callable interface for functions and builtins.
+//Uses RuntimeValue for type-safe function calls.
 interface Callable {
     fun arity(): Int
-    fun call(ctx: Any?, arguments: List<Any?>): Any?
+    fun call(interpreter: Interpreter?, arguments: List<RuntimeValue?>): RuntimeValue?
 }
 
-fun builtin(fn: (List<Any?>) -> Any?): Callable {
+//Create a builtin function from a lambda.
+//The lambda receives strongly-typed RuntimeValue arguments.
+fun builtin(fn: (List<RuntimeValue?>) -> RuntimeValue?): Callable {
     return object : Callable {
         override fun arity(): Int = -1
-        override fun call(ctx: Any?, arguments: List<Any?>): Any? {
+        override fun call(interpreter: Interpreter?, arguments: List<RuntimeValue?>): RuntimeValue? {
             return fn(arguments)
         }
         override fun toString(): String = "<builtin>"

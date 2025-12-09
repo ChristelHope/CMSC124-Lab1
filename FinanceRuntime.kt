@@ -146,10 +146,9 @@ class FinanceRuntime {
         return table
     }
 
-    /**
-     * Safely converts a value to List<Double>.
-     * Handles various input types and converts them to Double.
-     */
+
+    //Safely converts a value to List<Double>.
+    //Handles various input types and converts them to Double.
     private fun convertToListOfDouble(value: Any?): List<Double> {
         val list = value as? List<*> ?: throw IllegalArgumentException("Expected a list")
         return list.mapNotNull { 
