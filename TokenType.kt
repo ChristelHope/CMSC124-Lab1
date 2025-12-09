@@ -38,6 +38,8 @@ val keywords: Map<String, TokenType> = mapOf(
     "table" to TokenType.TABLE,
     "cashflow" to TokenType.CASHFLOW,
     "timeseries" to TokenType.TIMESERIES,
+    "inc" to TokenType.INC,
+    "dec" to TokenType.DEC,
 
     "scenario" to TokenType.SCENARIO,
     "run" to TokenType.RUN,
@@ -81,6 +83,9 @@ enum class TokenType {
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_BRACE, RIGHT_BRACE, COMMA, DOT, COLON, SLASH,
 
     PLUS, MINUS, STAR, PERCENT, CARET,
+    //increment, decrement
+    INC, DEC,
+    //arrow for lambda
     ARROW,
 
     // Function declaration keyword
@@ -90,7 +95,7 @@ enum class TokenType {
     EQUAL, EQUAL_EQUAL, BANG, BANG_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, AND_AND, OR_OR,
 
     // Literals
-    IDENTIFIER, NUMBER, STRING,MULTILINE_STRING,MONEY,DATE,TRUE, FALSE,NULL,
+    IDENTIFIER, NUMBER, STRING, MULTILINE_STRING, MONEY, DATE, TRUE, FALSE, NULL,
 
     // Keywords
     LET, SET,IF, THEN, WHILE, FOR, ELSE, ELSEIF, END,PRINT, LOG, RETURN,

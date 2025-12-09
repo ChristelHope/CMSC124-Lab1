@@ -171,26 +171,27 @@ The language supports the following:
         LET npvValue = NPV(netCF, rate)
 
 
-        IF npv > 0 THEN
-            PRINT "Project is profitable. Accept."
-        ELSE
-        PRINT "Project is not profitable. Reject."
-        END
+IF npv > 0 THEN
+    PRINT "Project is profitable"
+ELSE
+    PRINT "Project is not viable"
+END
+```
 
+### Scenarios (What-If Analysis)
+```finlite
+LET rate = 0.10
+LET growth = 0.08
 
-    Scenario
-        LET rate = 0.10
-        LET growth = 0.08
+SCENARIO Bull:
+    LET rate = 0.09
+    LET growth = 0.12
+END
 
-        SCENARIO Bull {
-            LET rate = 0.09
-            LET growth = 0.12
-        }
-
-        SCENARIO Bear {
-            LET rate = 0.13
-            LET growth = 0.03
-        }
+SCENARIO Bear:
+    LET rate = 0.13
+    LET growth = 0.03
+END
 
         RUN Bull ON valuation_model
         RUN Bear ON valuation_model

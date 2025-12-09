@@ -269,6 +269,12 @@ class Interpreter (
                                 RuntimeValue.Number(left.value + right.value)
                             left is RuntimeValue.String && right is RuntimeValue.String ->
                                 RuntimeValue.String(left.value + right.value)
+                            // String + anything: convert right to string and concatenate
+                            left is RuntimeValue.String ->
+                                RuntimeValue.String(left.value + valueToString(right))
+                            // Anything + String: convert left to string and concatenate
+                            right is RuntimeValue.String ->
+                                RuntimeValue.String(valueToString(left) + right.value)
                             left is RuntimeValue.ListValue && right is RuntimeValue.ListValue -> {
                                 val result = elementWiseNumericOp(
                                     expr.operator, 

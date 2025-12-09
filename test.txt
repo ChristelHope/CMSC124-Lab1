@@ -1,3 +1,6 @@
+#Test basic language features
+
+
 ###
 LET rate = 0.10
 LET growth = 0.08
@@ -47,7 +50,6 @@ PRINT NPV([-100, 60, 60], 0.1)
 PRINT IRR([-100, 60, 60])
 
 PRINT CAPM(0.8, 0.02, 0.08)
-
 
 #using lambda:
 LET sales = [1, 2, 3, 4]
@@ -204,7 +206,6 @@ PRINT "final balance"
 
 PRINT sched.balance[months - 1]  # final balance (should be 0 or near 0)
 
-###
 PRINT "Portfolio as object with assets and weights"
 LET assets = [0.12, 0.09, 0.15, 0.08]
 LET weights = [0.40, 0.30, 0.20, 0.10]
@@ -265,4 +266,79 @@ PORTFOLIO p1:
     CREDIT equity 10.0
 END
 PRINT p1
+
+PRINT "TIMESERIES - Moving Average with window size 3"
+LET data = [10, 20, 30, 40, 50, 60]
+LET ts = TIMESERIES(data, 3)
+PRINT ts
+
+
+PRINT "Monthly stock prices over 12 months"
+
+LET prices = [100, 102, 98, 105, 103, 107, 106, 110, 108, 112, 115, 118]
+
+PRINT "Raw prices:"
+
+PRINT prices
+
+PRINT "3-month moving average:"
+
+LET ma3 = TIMESERIES(prices, 3)
+PRINT ma3
+
+PRINT "6-month moving average:"
+
+LET ma6 = TIMESERIES(prices, 6)
+PRINT ma6
+
+PRINT "Increment/Decrement Tests"
+LET x = 5
+INC x
+PRINT x
+LET y = 10
+INC y
+PRINT y
+LET a = 3
+DEC a
+PRINT a
+LET b = 8
+DEC b
+PRINT b
+
+
+PRINT "1. Variables"
+LET x = 10
+LET y = 20
+SET x = 15
+PRINT "x =", x
+PRINT "y =", y
+
+PRINT "2. Functions with Closures"
+FUNC addx(a) {
+    FUNC adder(b) {
+        RETURN a + b
+    }
+    RETURN adder
+}
+LET add5 = addx(5)
+PRINT add5(10)
+
+PRINT "3. Financial Functions"
+PRINT NPV([-100, 60, 60], 0.1)
+PRINT IRR([-100, 60, 60])
+PRINT AMORTIZE(100000, 0.05, 5).payment[0]
+
+PRINT "4. TIMESERIES"
+LET data = [10, 20, 30, 40, 50]
+LET ts = TIMESERIES(data, 2)
+PRINT ts
+
+PRINT "5. Portfolio"
+PORTFOLIO p:
+    DEBIT assets 100
+    CREDIT liabilities 50
+END
+PRINT p
+
 ###
+

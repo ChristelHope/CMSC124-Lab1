@@ -70,12 +70,33 @@ class Parser(private val tokens: List<Token>) {
                     // Anonymous block (INDENT already consumed)
                     parseIndentedBlock("message")
                 }
+                match(INC) -> incStmt()
+                match(DEC) -> decStmt()
                 else -> exprStmt()
             }
         } catch (e: RuntimeException) {
             synchronize()
             Stmt.ErrorStmt
         }
+    }
+
+    private fun incStmt(): Stmt {
+        val name = consumeIdentifierLike("Expect variable name after 'inc'.")
+        consume(NEWLINE, "Expect newline after INC statement.")
+        // Build assignment: name = name + 1
+        val one = Expr.Literal(1.0)
+        val plusTok = Token(TokenType.PLUS, "+", null, name.line)
+        val assignExpr = Expr.Binary(Expr.Variable(name), plusTok, one)
+        return Stmt.SetStmt(name, assignExpr)
+    }
+
+    private fun decStmt(): Stmt {
+        val name = consumeIdentifierLike("Expect variable name after 'dec'.")
+        consume(NEWLINE, "Expect newline after DEC statement.")
+        val one = Expr.Literal(1.0)
+        val minusTok = Token(TokenType.MINUS, "-", null, name.line)
+        val assignExpr = Expr.Binary(Expr.Variable(name), minusTok, one)
+        return Stmt.SetStmt(name, assignExpr)
     }
 
     private fun functionDecl(): Stmt.FunctionDecl {
@@ -117,9 +138,28 @@ class Parser(private val tokens: List<Token>) {
     }
 
     private fun printStmt(): Stmt {
-        val expr = expression()
+        val exprs = mutableListOf<Expr>()
+        exprs.add(expression())
+        while (match(COMMA)) {
+            exprs.add(expression())
+        }
         consume(NEWLINE, "Expect newline after PRINT.")
-        return Stmt.Print(expr)
+        
+        // If single expression, use it directly; otherwise concatenate with spaces
+        val finalExpr = if (exprs.size == 1) {
+            exprs[0]
+        } else {
+            // Build a concatenation chain: expr1 + " " + expr2 + " " + expr3 + ...
+            var result = exprs[0]
+            for (i in 1 until exprs.size) {
+                val spaceTok = Token(TokenType.PLUS, "+", null, peek().line)
+                val space = Expr.Literal(" ")
+                result = Expr.Binary(result, spaceTok, space)
+                result = Expr.Binary(result, spaceTok, exprs[i])
+            }
+            result
+        }
+        return Stmt.Print(finalExpr)
     }
 
     private fun exprStmt(): Stmt {
@@ -328,6 +368,8 @@ class Parser(private val tokens: List<Token>) {
             val right = unary()
             return Expr.Unary(op, right)
         }
+
+        
         return call()
     }
 
@@ -362,6 +404,7 @@ class Parser(private val tokens: List<Token>) {
                 val rb = consume(RIGHT_BRACKET, "Expect ']' after index or slice.")
                 expr = Expr.Subscript(expr, start, end, rb, isSlice)
             } else {
+                
                 break
             }
         }
@@ -423,11 +466,11 @@ class Parser(private val tokens: List<Token>) {
             )) {
             return Expr.Variable(previous())
         }
-        /*
+
         if (match(TIMESERIES)) {
             return parseTimeSeriesCall()
         }
-        */
+
         if (match(LEFT_PAREN)) {
             val expr = expression()
             consume(RIGHT_PAREN, "Expect ')' after expression.")
@@ -459,7 +502,7 @@ class Parser(private val tokens: List<Token>) {
     // =======================================
     // Finance-specific literals & statements
     // =======================================
-    /*
+
     private fun parseTimeSeriesCall(): Expr {
         consume(LEFT_PAREN, "Expect '(' after 'timeseries'.")
         if (check(RIGHT_PAREN)) {
@@ -477,7 +520,7 @@ class Parser(private val tokens: List<Token>) {
         consume(RIGHT_PAREN, "Expect ')' after timeseries arguments.")
         return Expr.TimeSeries(source, window)
     }
-    */
+
     private fun finishCall(callee: Expr): Expr {
         val args = mutableListOf<Expr>()
         if (!check(RIGHT_PAREN)) {
